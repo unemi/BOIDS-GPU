@@ -9,8 +9,10 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef id<MTLComputeCommandEncoder> CCE;
-typedef id<MTLRenderCommandEncoder> RCE;
+typedef struct {
+	float depth, scale, contrast;
+} ViewParams;
+#define N_VPARAMS (sizeof(ViewParams)/sizeof(float))
 
 @interface MyMTKView : MTKView
 @end
@@ -23,6 +25,7 @@ typedef id<MTLRenderCommandEncoder> RCE;
 
 extern CGFloat FPS;
 extern simd_float3 BirdRGB;
-extern NSInteger NewPopSize;
+extern ViewParams ViewPrms, DfltViewPrms;
+extern NSString * _Nonnull ViewPrmLbls[];
 
 NS_ASSUME_NONNULL_END

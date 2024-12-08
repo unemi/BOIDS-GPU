@@ -6,6 +6,7 @@
 //
 
 #import "AppDelegate.h"
+#import "AgentCPU.h"
 #import "AgentGPU.h"
 #import "MetalView.h"
 
@@ -73,12 +74,12 @@ NSString *FullScreenName = nil;
 @implementation PanelController {
 	IBOutlet NSTextField *popSizeDgt;
 	IBOutlet NSButton *ppSzApplyBtn;
-	IBOutlet NSTextField *avdLbl, *cohLbl, *aliLbl,
-		*masLbl, *mxsLbl, *mnsLbl, *frcLbl;
 	IBOutlet NSSlider *avdSld, *cohSld, *aliSld,
-		*masSld, *mxsSld, *mnsSld, *frcSld;
+		*sightDSld, *sightASld, *masSld, *mxsSld, *mnsSld, *frcSld;
 	IBOutlet NSTextField *avdDgt, *cohDgt, *aliDgt,
-		*masDgt, *mxsDgt, *mnsDgt, *frcDgt;
+		*sightDDgt, *sightADgt, *masDgt, *mxsDgt, *mnsDgt, *frcDgt;
+	IBOutlet NSTextField *depthDgt, *scaleDgt, *cntrstDgt;
+	IBOutlet NSSlider *depthSld, *scaleSld, *cntrstSld;
 	IBOutlet NSColorWell *bgColWel, *bdColWel;
 	IBOutlet NSPopUpButton *fullScrPopUp;
 	IBOutlet NSButton *revertBtn, *saveBtn, *resetBtn;
@@ -97,9 +98,22 @@ static NSInteger default_popSize(void) {
 	NSNumber *num = [NSUserDefaults.standardUserDefaults objectForKey:keyPopSize];
 	return num? num.integerValue : PopSizeDefault;
 }
+static NSString *label_from_tag(NSInteger tag) {
+	return (tag < N_PARAMS)? PrmLabels[tag] : ViewPrmLbls[tag - N_PARAMS];
+}
 static CGFloat default_value(NSInteger idx) {
-	NSNumber *num = [NSUserDefaults.standardUserDefaults objectForKey:PrmLabels[idx]];
+	NSNumber *num = [NSUserDefaults.standardUserDefaults objectForKey:label_from_tag(idx)];
 	return num? num.doubleValue : 0.;
+}
+static CGFloat get_param_value(NSInteger idx) {
+	return (idx < N_PARAMS)?
+		((float *)(&PrmsUI))[idx] : ((float *)(&ViewPrms))[idx - N_PARAMS];
+}
+static void set_param_value(NSInteger idx, CGFloat value) {
+	if (idx < N_PARAMS) {
+		((float *)(&PrmsUI))[idx] = value;
+		set_sim_params();
+	} else ((float *)(&ViewPrms))[idx - N_PARAMS] = value;
 }
 static MyRGB myRGB_from_array(NSArray<NSNumber *> *arr) {
 	return (MyRGB){arr[0].doubleValue, arr[1].doubleValue, arr[2].doubleValue};
@@ -146,8 +160,8 @@ void load_defaults(void) {
 	PopSizeDefault = NewPopSize = PopSize;
 	if ((num = [ud objectForKey:keyPopSize]) != nil)
 		NewPopSize = PopSize = num.integerValue;
-	for (NSInteger i = 0; i < N_PAAMS; i ++)
-		if ((num = [ud objectForKey:PrmLabels[i]]) != nil)
+	for (NSInteger i = 0; i < N_PARAMS + N_VPARAMS; i ++)
+		if ((num = [ud objectForKey:label_from_tag(i)]) != nil)
 			set_param_value(i, num.doubleValue);
 	memcpy(Colors, ColorDefault, sizeof(Colors));
 	NSArray<NSNumber *> *arr;
@@ -182,13 +196,14 @@ static void displayReconfigCB(CGDirectDisplayID display,
 		kCGDisplayEnabledFlag | kCGDisplayDisabledFlag)) == 0) return;
 	in_main_thread(^{ [(__bridge PanelController *)userInfo configureScreenMenu]; });
 }
-#define PRM_BASE 5.
 - (void)windowDidLoad {
 	popSizeDgt.integerValue = PopSize;
-	sliders = @[avdSld, cohSld, aliSld, masSld, mxsSld, mnsSld, frcSld];
-	digits = @[avdDgt, cohDgt, aliDgt, masDgt, mxsDgt, mnsDgt, frcDgt];
+	sliders = @[avdSld, cohSld, aliSld, sightDSld, sightASld,
+		masSld, mxsSld, mnsSld, frcSld, depthSld, scaleSld, cntrstSld];
+	digits = @[avdDgt, cohDgt, aliDgt, sightDDgt, sightADgt,
+		masDgt, mxsDgt, mnsDgt, frcDgt, depthDgt, scaleDgt, cntrstDgt];
 	for (NSInteger i = 0; i < sliders.count; i ++) {
-		sliders[i].doubleValue = digits[i].doubleValue = default_value(i);
+		sliders[i].doubleValue = digits[i].doubleValue = get_param_value(i);
 		sliders[i].tag = digits[i].tag = i;
 		sliders[i].target = digits[i].target = self;
 		sliders[i].action = digits[i].action = @selector(changeValue:);
@@ -213,6 +228,11 @@ static void displayReconfigCB(CGDirectDisplayID display,
 	if ([alert runModal] == NSAlertFirstButtonReturn)
 		[self saveAsDefault:saveBtn];
 }
+- (void)resetCamera {
+	depthSld.doubleValue = scaleSld.doubleValue = 0.;
+	[depthSld sendAction:depthSld.action to:depthSld.target];
+	[scaleSld sendAction:scaleSld.action to:scaleSld.target];
+}
 static void set_popSize(NSInteger newSize) {
 	[((AppDelegate *)NSApp.delegate).metalView revisePopSize:newSize];
 }
@@ -234,10 +254,6 @@ static void set_popSize(NSInteger newSize) {
 	ppSzApplyBtn.enabled = NO;
 	[self checkButtonEnabled];
 }
-static void set_param_value(NSInteger idx, CGFloat exp) {
-	float *prm = (float *)(&Prms), *prmDf = (float *)(&PrmsDefault);
-	prm[idx] = prmDf[idx] * pow(PRM_BASE, exp);
-}
 - (IBAction)changeValue:(NSControl *)sender {
 	NSInteger tag = sender.tag;
 	CGFloat value = sender.doubleValue;
@@ -246,13 +262,17 @@ static void set_param_value(NSInteger idx, CGFloat exp) {
 	CGFloat orgVal = cntrParts[tag].doubleValue;
 	cntrParts[tag].doubleValue = value;
 	set_param_value(tag, value);
-	[undoMngr registerUndoWithTarget:sender handler:^(NSControl *target) {
-		target.doubleValue = orgVal;
-		[target sendAction:target.action to:target.target]; 
+	[undoMngr registerUndoWithTarget:sender handler:^(NSControl *cntl) {
+		cntl.doubleValue = orgVal;
+		[cntl sendAction:cntl.action to:cntl.target]; 
 	}];
 	if (!undoMngr.isUndoing && !undoMngr.isRedoing)
-		undoMngr.actionName = PrmLabels[tag];
+		undoMngr.actionName = label_from_tag(tag);
 	[self checkButtonEnabled];
+	if (tag >= N_PARAMS) {
+		MTKView *view = ((AppDelegate *)NSApp.delegate).metalView.view;
+		if (view.paused) view.needsDisplay = YES;
+	}
 }
 static void set_color_value(NSInteger idx, MyRGB rgb) {
 	MTKView *view = ((AppDelegate *)NSApp.delegate).metalView.view;
@@ -301,10 +321,10 @@ static void set_color_value(NSInteger idx, MyRGB rgb) {
 		}
 	}
 	for (NSInteger i = 0; i < sliders.count; i ++)
-	if ((num = dict[PrmLabels[i]]) != nil) {
+	if ((num = dict[label_from_tag(i)]) != nil) {
 		CGFloat newValue = num.doubleValue, orgValue = sliders[i].doubleValue;
 		if (newValue != orgValue) {
-			md[PrmLabels[i]] = @(orgValue);
+			md[label_from_tag(i)] = @(orgValue);
 			sliders[i].doubleValue = digits[i].doubleValue = newValue;
 			set_param_value(i, newValue);
 		}
@@ -341,13 +361,13 @@ static void set_color_value(NSInteger idx, MyRGB rgb) {
 		}
 	}
 	for (NSInteger i = 0; i < sliders.count; i ++)
-	if ((numNew = dict[PrmLabels[i]]) != nil) {
-		numOrg = [ud objectForKey:PrmLabels[i]];
+	if ((numNew = dict[label_from_tag(i)]) != nil) {
+		numOrg = [ud objectForKey:label_from_tag(i)];
 		CGFloat newValue = numNew.doubleValue, orgValue = numOrg? numOrg.doubleValue : 0.;
 		if (newValue != orgValue) {
-			md[PrmLabels[i]] = numOrg? numOrg : @(0.);
-			if (newValue == 0.) [ud removeObjectForKey:PrmLabels[i]];
-			else [ud setObject:numNew forKey:PrmLabels[i]];
+			md[label_from_tag(i)] = numOrg? numOrg : @(0.);
+			if (newValue == 0.) [ud removeObjectForKey:label_from_tag(i)];
+			else [ud setObject:numNew forKey:label_from_tag(i)];
 		}
 	}
 	for (NSInteger i = 0; i < NColors; i ++)
@@ -384,7 +404,7 @@ static void set_color_value(NSInteger idx, MyRGB rgb) {
 	if (default_popSize() != NewPopSize) md[keyPopSize] = @(NewPopSize);
 	for (NSInteger i = 0; i < sliders.count; i ++) {
 		CGFloat orgValue = default_value(i), newValue = sliders[i].doubleValue;
-		if (orgValue != newValue) md[PrmLabels[i]] = @(newValue);
+		if (orgValue != newValue) md[label_from_tag(i)] = @(newValue);
 	}
 	for (NSInteger i = 0; i < NColors; i ++) {
 		MyRGB orgRGB = default_color(i);
@@ -404,7 +424,7 @@ static void set_color_value(NSInteger idx, MyRGB rgb) {
 	if (newSize != NewPopSize) md[keyPopSize] = @(newSize);
 	for (NSInteger i = 0; i < sliders.count; i ++) {
 		CGFloat newVal = default_value(i);
-		if (newVal != sliders[i].doubleValue) md[PrmLabels[i]] = @(newVal);
+		if (newVal != sliders[i].doubleValue) md[label_from_tag(i)] = @(newVal);
 	}
 	for (NSInteger i = 0; i < NColors; i ++) {
 		MyRGB newRGB = default_color(i);
@@ -423,7 +443,7 @@ static void set_color_value(NSInteger idx, MyRGB rgb) {
 	NSMutableDictionary *md = NSMutableDictionary.new;
 	if (NewPopSize != PopSizeDefault) md[keyPopSize] = @(PopSizeDefault);
 	for (NSInteger i = 0; i < sliders.count; i ++)
-		if (sliders[i].doubleValue != 0.) md[PrmLabels[i]] = @(0.);
+		if (sliders[i].doubleValue != 0.) md[label_from_tag(i)] = @(0.);
 	for (NSInteger i = 0; i < NColors; i ++) {
 		if (memcmp(&Colors[i], &ColorDefault[i], sizeof(MyRGB)) != 0)
 			md[ColorNames[i]] = myRGB_to_array(ColorDefault[i]);

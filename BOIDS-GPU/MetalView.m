@@ -6,10 +6,11 @@
 //
 
 #import "MetalView.h"
+#import "AgentCPU.h"
 #import "AgentGPU.h"
 #import "AppDelegate.h"
 #define LOG_STEPS 200
-//#define MEASURE_TIME
+#define MEASURE_TIME
 #ifdef MEASURE_TIME
 #define REC_TIME(v) unsigned long v = current_time_us();
 #else
@@ -18,27 +19,21 @@
 
 CGFloat FPS = 10.;
 simd_float3 BirdRGB = {1,1,1};
-NSInteger NewPopSize;
-
+ViewParams ViewPrms = {.depth = 0., .scale = 0., .contrast = 0.};
+NSString * _Nonnull ViewPrmLbls[] = { @"Depth", @"Scale", @"Contrast" };
+typedef id<MTLComputeCommandEncoder> CCE;
+typedef id<MTLRenderCommandEncoder> RCE;
 typedef enum { StopNone = 0,
 	StopCompute = 1, StopView = 2, StopAndRestart = 4 } StopState;
-typedef struct { CGFloat depth, scale; } CameraPose;
 
 @interface MetalView () {
 	IBOutlet NSMenu *menu;
 }
-@property CameraPose cam;
 @end
 
 @implementation MetalView {
 	IBOutlet NSToolbarItem *playItem, *fullScrItem;
 	IBOutlet NSTextField *fpsDgt;
-	id<MTLComputePipelineState> movePSO, shapePSO;
-	id<MTLRenderPipelineState> drawPSO;
-	id<MTLCommandQueue> commandQueue;
-	id<MTLBuffer> popBuf, forceBuf, cellBuf, idxsBuf, vxBuf;
-	id<MTLBuffer> taskBf[2];	// for double buffering
-	NSInteger taskBfIdx;
 	NSRect viewportRect;
 	NSConditionLock *drawLock;
 	NSLock *memLock;
@@ -63,26 +58,7 @@ typedef struct { CGFloat depth, scale; } CameraPose;
 }
 - (void)allocPopMem {
 	[memLock lock];
-	id<MTLDevice> device = _view.device;
-	for (NSInteger i = 0; i < 2; i ++)
-		taskBf[i] = [device newBufferWithLength:sizeof(Task) * NewPopSize
-			options:MTLResourceStorageModeShared];
-	popBuf = [device newBufferWithLength:sizeof(Agent) * NewPopSize
-		options:MTLResourceStorageModeShared];
-	forceBuf = [device newBufferWithLength:sizeof(simd_float3) * NewPopSize
-		options:MTLResourceStorageModeShared];
-	idxsBuf = [device newBufferWithLength:sizeof(NSInteger) * NewPopSize
-		options:MTLResourceStorageModeShared];
-	vxBuf = [device newBufferWithLength:sizeof(simd_float2) * NewPopSize * 6
-		options:MTLResourceStorageModePrivate];
-	TaskQueue = taskBf[0].contents;
-	TasQWork = taskBf[1].contents;
-	Pop = popBuf.contents;
-	Forces = forceBuf.contents;
-	Idxs = idxsBuf.contents;
-	pop_mem_init(NewPopSize);
-	PopSize = NewPopSize;
-	pop_reset();
+	alloc_pop_mem(_view.device);
 	[memLock unlock];
 }
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object
@@ -95,7 +71,7 @@ typedef struct { CGFloat depth, scale; } CameraPose;
 	@try {
 		load_defaults();
 		NSError *error;
-		id<MTLDevice> device = _view.device = MTLCreateSystemDefaultDevice();
+		id<MTLDevice> device = _view.device = setup_GPU();
 		NSUInteger smplCnt = 1;
 		while ([device supportsTextureSampleCount:smplCnt << 1]) smplCnt <<= 1;
 		_view.sampleCount = smplCnt;
@@ -103,9 +79,6 @@ typedef struct { CGFloat depth, scale; } CameraPose;
 		_view.menu = menu;
 		_view.delegate = self;
 		id<MTLLibrary> dfltLib = device.newDefaultLibrary;
-		movePSO = [device newComputePipelineStateWithFunction:
-			[dfltLib newFunctionWithName:@"moveAgent"] error:&error];
-		if (movePSO == nil) @throw error;
 		shapePSO = [device newComputePipelineStateWithFunction:
 			[dfltLib newFunctionWithName:@"makeSpape"] error:&error];
 		if (shapePSO == nil) @throw error;
@@ -114,19 +87,15 @@ typedef struct { CGFloat depth, scale; } CameraPose;
 		pplnStDesc.rasterSampleCount = _view.sampleCount;
 		MTLRenderPipelineColorAttachmentDescriptor *colAttDesc = pplnStDesc.colorAttachments[0];
 		colAttDesc.pixelFormat = _view.colorPixelFormat;
-		pplnStDesc.vertexFunction = [dfltLib newFunctionWithName:@"vertexShader"];
+		pplnStDesc.vertexFunction = [dfltLib newFunctionWithName:@"vertexShaderBG"];
 		pplnStDesc.fragmentFunction = [dfltLib newFunctionWithName:@"fragmentShader"];
+		bgPSO = [device newRenderPipelineStateWithDescriptor:pplnStDesc error:&error];
+		if (bgPSO == nil) @throw error;
+		pplnStDesc.vertexFunction = [dfltLib newFunctionWithName:@"vertexShader"];
 		drawPSO = [device newRenderPipelineStateWithDescriptor:pplnStDesc error:&error];
 		if (drawPSO == nil) @throw error;
-		commandQueue = device.newCommandQueue;
 		drawLock = [NSConditionLock.alloc initWithCondition:0];
 		memLock = NSLock.new;
-		cellBuf = [device newBufferWithLength:
-			sizeof(Cell) * N_CELLS_X*N_CELLS_Y*N_CELLS_Z
-			options:MTLResourceStorageModeShared];
-		Cells = cellBuf.contents;
-		pop_init();
-		NewPopSize = PopSize;
 		[self allocPopMem];
 		_view.paused = YES;
 		_view.enableSetNeedsDisplay = YES;
@@ -155,10 +124,10 @@ typedef struct { CGFloat depth, scale; } CameraPose;
 		unsigned long now = current_time_us();
 		CGFloat interval = (now - time_us) / 1e6;
 		time_us = now;
-		Prms.tmMS = fmin(interval, 1./20.) * 1000.;
+		float deltaTime = fmin(interval, 1./20.) * 1000.;
 		Step ++;
 #ifdef MEASURE_TIME
-		TMI += (Prms.tmMS - TMI) * 0.05;
+		TMI += (deltaTime - TMI) * 0.05;
 		if (Step % LOG_STEPS == 0)
 			printf("%ld:%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n", Step, TM1, TM2, TM3, TM4, TMG, TMI);
 #endif
@@ -174,36 +143,16 @@ typedef struct { CGFloat depth, scale; } CameraPose;
 			TasQWork = taskBf[1 - taskBfIdx].contents;
 		}
 		REC_TIME(tm4);
-
-		id<MTLCommandBuffer> cmdBuf = commandQueue.commandBuffer;
-		cmdBuf.label = @"MyCommand";
-		CCE cce = cmdBuf.computeCommandEncoder;
-		[cce setComputePipelineState:movePSO];
-		NSInteger idx = 0;
-		[cce setBuffer:popBuf offset:0 atIndex:idx ++];
-		[cce setBuffer:forceBuf offset:0 atIndex:idx ++];
-		[cce setBuffer:cellBuf offset:0 atIndex:idx ++];
-		[cce setBuffer:idxsBuf offset:0 atIndex:idx ++];
-		[cce setBuffer:taskBf[taskBfIdx] offset:0 atIndex:idx ++];
-		[cce setBytes:&WS length:sizeof(WS) atIndex:idx ++];
-		[cce setBytes:&Prms length:sizeof(Params) atIndex:idx ++];
-		NSUInteger threadGrpSz = movePSO.maxTotalThreadsPerThreadgroup;
-		if (threadGrpSz > PopSize) threadGrpSz = PopSize;
-		[cce dispatchThreads:MTLSizeMake(PopSize, 1, 1)
-			threadsPerThreadgroup:MTLSizeMake(threadGrpSz, 1, 1)];
-		[cce endEncoding];
 		[drawLock lockWhenCondition:0];
-		REC_TIME(tm5);
-		[cmdBuf commit];
-		[cmdBuf waitUntilCompleted];
+		pop_step4(deltaTime);
+		[drawLock unlockWithCondition:1];
+		[memLock unlock];
 #ifdef MEASURE_TIME
 		TM1 += ((tm2 - tm1) / 1000. - TM1) * 0.05;
 		TM2 += ((tm3 - tm2) / 1000. - TM2) * 0.05;
 		TM3 += ((tm4 - tm3) / 1000. - TM3) * 0.05;
-		TM4 += ((current_time_us() - tm5) / 1000. - TM4) * 0.05;
+		TM4 += ((current_time_us() - tm4) / 1000. - TM4) * 0.05;
 #endif
-		[drawLock unlockWithCondition:1];
-		[memLock unlock];
 		if (NewPopSize != PopSize) usleep(100000/3);
 	}
 	stopState = ((stopState & StopAndRestart) | StopView);
@@ -215,7 +164,7 @@ typedef struct { CGFloat depth, scale; } CameraPose;
 	[cce setComputePipelineState:shapePSO];
 	NSInteger idx = 0;
 	REC_TIME(tm1);
-	simd_float2 camP = {WS.z * pow(10., _cam.depth), pow(10., _cam.scale)};
+	simd_float2 camP = {WS.z * pow(10., ViewPrms.depth), pow(10., ViewPrms.scale)};
 	[cce setBuffer:popBuf offset:0 atIndex:idx ++];
 	[cce setBytes:&WS length:sizeof(WS) atIndex:idx ++];
 	[cce setBytes:&camP length:sizeof(camP) atIndex:idx ++];
@@ -239,6 +188,29 @@ typedef struct { CGFloat depth, scale; } CameraPose;
 	rce.label = @"MyRenderEncoder";
 	[rce setViewport:(MTLViewport){viewportRect.origin.x, viewportRect.origin.y,
 		viewportRect.size.width, viewportRect.size.height, 0., 1. }];
+	if (ViewPrms.contrast > -1.) {
+		static uint16 cornersIdx[4][4] = // Left, Right, Cieling, and Back
+			{{0, 2, 4, 6}, {1, 3, 5, 6}, {2, 3, 6, 7}, {4, 5, 6, 7}};
+		static float surfaceDim[4] = {.5, .5, 1., .75};
+		MTLClearColor cc = _view.clearColor;
+		simd_float3 baseCol = (simd_float3){cc.red, cc.green, cc.blue};
+		[rce setRenderPipelineState:bgPSO];
+		idx = 0;
+		[rce setVertexBytes:&WS length:sizeof(WS) atIndex:idx ++];
+		[rce setVertexBytes:&camP length:sizeof(camP) atIndex:idx ++];
+		for (NSInteger i = 0; i < 4; i ++) {
+			simd_float3 corners[4], col;
+			for (NSInteger j = 0; j < 4; j ++) {
+				uint16 k = cornersIdx[i][j];
+				corners[j] = WS * (simd_float3){k % 2, (k / 2) % 2, k / 4};
+			}
+			col = baseCol + surfaceDim[i] * (ViewPrms.contrast + 1.) / 2. * (1. - baseCol);
+			[rce setVertexBytes:corners length:sizeof(corners) atIndex:idx];
+			[rce setFragmentBytes:&col length:sizeof(col) atIndex:0];
+			[rce drawPrimitives:MTLPrimitiveTypeTriangleStrip
+				vertexStart:0 vertexCount:4];
+		}
+	}
 	[rce setRenderPipelineState:drawPSO];
 	[rce setVertexBuffer:vxBuf offset:0 atIndex:0];
 	[rce setFragmentBytes:&BirdRGB length:sizeof(BirdRGB) atIndex:0];
@@ -306,18 +278,18 @@ typedef struct { CGFloat depth, scale; } CameraPose;
 	} else stopState = (StopCompute|StopAndRestart);
 }
 - (IBAction)resetCamera:(id)sender {
-	memset(&_cam, 0, sizeof(_cam));
+	if (((AppDelegate *)NSApp.delegate).pnlCntl != nil)
+		[((AppDelegate *)NSApp.delegate).pnlCntl resetCamera];
+	else ViewPrms.depth = ViewPrms.scale = 0.;
 	_view.needsDisplay = YES;
 }
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	if (menuItem.action == @selector(playPause:))
+	if (menuItem.action == @selector(playPause:)) {
 		menuItem.title = _view.paused? @"Play" : @"Pause";
-	else if (menuItem.action == @selector(fullScreen:)) {
+	} else if (menuItem.action == @selector(fullScreen:)) {
 		menuItem.title = _view.inFullScreenMode? @"Exit Full Screen" : @"Enter Full Screen";
 	} else if (menuItem.action == @selector(resetCamera:)) {
-		for (NSInteger i = 0; i < sizeof(_cam) / sizeof(CGFloat); i ++)
-			if (((CGFloat *)(&_cam))[i] != 0.) return YES;
-		return NO;
+		return ViewPrms.depth != 0. || ViewPrms.scale != 0.;
 	}
 	return YES;
 }
@@ -331,14 +303,11 @@ typedef struct { CGFloat depth, scale; } CameraPose;
 
 @implementation MyMTKView
 - (void)scrollWheel:(NSEvent *)event {
-	MetalView *mv = (MetalView *)self.delegate;
 	CGFloat delta = (event.modifierFlags & NSEventModifierFlagShift)?
 		event.deltaX * .05 : event.deltaY * .005;
-	CameraPose cp = mv.cam;
 	if (event.modifierFlags & NSEventModifierFlagCommand)
-		cp.scale = fmax(-1., fmin(1., cp.scale - delta));
-	else cp.depth =  fmax(-1., fmin(1., cp.depth + delta));
-	mv.cam = cp;
+		ViewPrms.scale = fmax(-1., fmin(1., ViewPrms.scale - delta));
+	else ViewPrms.depth =  fmax(-1., fmin(1., ViewPrms.depth + delta));
 	self.needsDisplay = YES;
 }
 - (void)keyDown:(NSEvent *)event {

@@ -12,6 +12,7 @@ typedef struct { CGFloat red, green, blue; } MyRGB;
 @interface PanelController : NSWindowController
 <NSWindowDelegate, NSMenuItemValidation>
 - (void)appTerminate;
+- (void)resetCamera;
 @end
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
