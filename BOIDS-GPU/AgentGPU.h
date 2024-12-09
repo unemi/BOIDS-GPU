@@ -17,6 +17,7 @@ extern id<MTLBuffer> _Nonnull taskBf[2];	// for double buffering
 extern NSInteger taskBfIdx, NewPopSize;
 
 extern void alloc_pop_mem(id<MTLDevice> device);
+extern void alloc_cell_mem(id<MTLDevice> device);
 extern id<MTLDevice> setup_GPU(void);
 extern void pop_step4(float deltaTime);
 

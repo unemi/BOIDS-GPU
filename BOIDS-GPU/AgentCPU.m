@@ -13,7 +13,9 @@
 #define STD_POPSIZE 1000.
 #define STD_CELSIZE 12.
 NSInteger PopSize = 120000, Step;
-float CellSize, ND = STD_CELSIZE*.75; // max distance to neighbor
+int32_t CellUnit = 0;
+float CellSize;
+#define NEAR_DIST (STD_CELSIZE*.75) // max distance to neighbor
 simd_float3 WS;	// World Size
 Params PrmsUI, PrmsSim;
 static Params PrmsSTD = { .avoid = .05, .cohide = 1e-3, .align = .05,
@@ -31,6 +33,7 @@ simd_float3 *Forces;
 Cell *Cells;
 Task *TaskQueue, *TasQWork;
 NSInteger *Idxs;
+static NSInteger *TmpCellMem = NULL;
 static NSInteger nCores = 0;
 static dispatch_group_t DispatchGrp;
 static dispatch_queue_t DispatchQue;
@@ -53,25 +56,38 @@ static void check_wall(NSInteger aIdx, NSInteger elm, float p, float nd, float a
 void pop_reset(void) {
 	for (NSInteger i = 0; i < PopSize; i ++) {
 		Agent *a = &Pop[i];
-		a->p = (simd_float3){drand48(), drand48(), drand48()} * (WS - ND) + ND/2.;
+		a->p = (simd_float3){drand48(), drand48(), drand48()} * (WS - NEAR_DIST) + NEAR_DIST/2.;
 		float th = drand48() * M_PI*2, phi = (drand48() - .5) * M_PI/3;
 		a->v = (simd_float3){cosf(th)*cosf(phi), sinf(phi), sinf(th)*cosf(phi)} * .01;
 	}
 	Step = 0;
 }
-void pop_mem_init(NSInteger popSize) {
+BOOL check_cell_unit(NSInteger popSize) {
+	CellSize = pow(popSize / STD_POPSIZE, 1./3.) * STD_CELSIZE;
+	float nd = PrmsSim.sightDist;
+	int cellUnit = log2(CellSize / 2. / nd) + 1;
+	if (cellUnit < 1) {
+		CellSize = nd * 2.;
+		cellUnit = 1;
+	} else CellSize /= cellUnit;
+	BOOL revised = cellUnit != CellUnit;
+	if (revised) {
+		NSLog(@"cell unit = %d", cellUnit);
+		CellUnit = cellUnit;
+		TmpCellMem = realloc(TmpCellMem, sizeof(NSInteger) * N_CELLS * (nCores + 1));
+	}
+	return revised;
+}
+BOOL pop_mem_init(NSInteger popSize) {
 	CelIdxs = realloc(CelIdxs, sizeof(NSInteger) * popSize);
-	CellSize = pow(popSize / STD_POPSIZE, 1./3.) * STD_CELSIZE / CELL_UNIT;
-	if (ND > CellSize / 2.) {
-		CellSize = ND * 2.;
-//		printf("Cell size was revised as PopSize %ld is too small.\n", PopSize);
-	} 
+	BOOL cellUnitRevised = check_cell_unit(popSize);
 	WS = (simd_float3){CellSize*N_CELLS_X, CellSize*N_CELLS_Y, CellSize*N_CELLS_Z};
+	return cellUnitRevised;
 }
 void pop_init(void) {
 	memset(&PrmsUI, 0, sizeof(Params));
 	memcpy(&PrmsSim, &PrmsSTD, sizeof(Params));
-	PrmsSim.sightDist *= ND;
+	PrmsSim.sightDist *= NEAR_DIST;
 	if (nCores == 0) { // get the number of performance cores.
 		size_t len = sizeof(int32_t);
 		int32_t nCpus;
@@ -86,7 +102,7 @@ void set_sim_params(void) {
 		*std = (float *)(&PrmsSTD), *base = (float *)(&PrmsBase);
 	for (NSInteger i = 0; i < N_PARAMS; i ++)
 		prmsSim[i] = std[i] * pow(base[i], prmsUI[i]);
-	PrmsSim.sightDist *= ND;
+	PrmsSim.sightDist *= NEAR_DIST;
 }
 static BOOL merge_sort(Task *src, Task *work, NSInteger n) {
 	if (n <= (PopSize + nCores - 1) / nCores) {
@@ -128,9 +144,8 @@ static BOOL merge_sort(Task *src, Task *work, NSInteger n) {
 }
 void pop_step1(void) {
 	memset(Cells, 0, sizeof(Cell) * N_CELLS);
-	NSInteger *cn = malloc(sizeof(NSInteger) * N_CELLS * nCores), ii[N_CELLS];
-	memset(cn, 0, sizeof(ii) * nCores);
-	memset(ii, 0, sizeof(ii));
+	NSInteger *ii = TmpCellMem, *cn = ii + N_CELLS;
+	memset(ii, 0, sizeof(NSInteger) * N_CELLS * (nCores + 1));
 	NSInteger nAg = PopSize / nCores;
 	void (^block)(NSInteger, NSInteger) = ^(NSInteger from, NSInteger to) {
 		for (NSInteger i = from; i < to; i ++) {
@@ -146,7 +161,6 @@ void pop_step1(void) {
 	for (NSInteger i = 0; i < nCores; i ++)
 	for (NSInteger j = 0; j < N_CELLS; j ++)
 		Cells[j].n += cn[j + N_CELLS * i];
-	free(cn);
 	NSInteger nn = 0;
 	for (NSInteger i = 0; i < N_CELLS; i ++)
 		{ Cells[i].start = nn; nn += Cells[i].n; }
@@ -157,7 +171,7 @@ void pop_step1(void) {
 }
 void pop_step2(void) {
 	memset(Forces, 0, sizeof(simd_float3) * PopSize);
-	float nd = ND*2., avd = .2;
+	float nd = NEAR_DIST*2., avd = .2;
 	for (NSInteger j = 0; j < N_CELLS_Y; j ++)
 	dispatch_group_async(DispatchGrp, DispatchQue, ^{
 	for (NSInteger i = 0; i < 2; i ++)
@@ -191,7 +205,7 @@ BOOL pop_step3(void) {
 	void (^blockTQ)(NSInteger) = ^(NSInteger aIdx) {
 		simd_float3 p = Pop[aIdx].p / CellSize, rp = simd_fract(p);
 		simd_int3 idxV = simd_int(p);
-		float rLow = ND / CellSize, rUp = 1. - rLow;
+		float rLow = PrmsSim.sightDist / CellSize, rUp = 1. - rLow;
 		simd_int3 from = idxV, to = idxV, upLm = MAX_CELL_IDX;
 		for (NSInteger i = 0; i < 3; i ++) {
 			if (rp[i] > rUp && to[i] < upLm[i]) to[i] ++;

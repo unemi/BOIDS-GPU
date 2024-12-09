@@ -44,7 +44,7 @@ typedef enum { StopNone = 0,
 #endif
 	unsigned long PrevTime;
 	StopState stopState;
-	BOOL shouldRestart;
+	BOOL shouldRestart, sightDistChanged;
 }
 - (void)switchFpsTimer:(BOOL)on {
 	if (on) {
@@ -59,6 +59,12 @@ typedef enum { StopNone = 0,
 - (void)allocPopMem {
 	[memLock lock];
 	alloc_pop_mem(_view.device);
+	[memLock unlock];
+}
+- (void)allocCellMem {
+	[memLock lock];
+	if (check_cell_unit(PopSize))
+		alloc_cell_mem(_view.device);
 	[memLock unlock];
 }
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object
@@ -153,7 +159,7 @@ typedef enum { StopNone = 0,
 		TM3 += ((tm4 - tm3) / 1000. - TM3) * 0.05;
 		TM4 += ((current_time_us() - tm4) / 1000. - TM4) * 0.05;
 #endif
-		if (NewPopSize != PopSize) usleep(100000/3);
+		if (NewPopSize != PopSize || sightDistChanged) usleep(100000/3);
 	}
 	stopState = ((stopState & StopAndRestart) | StopView);
 }
@@ -226,8 +232,10 @@ typedef enum { StopNone = 0,
 #endif
 	FPS += (fmax(1e6 / (tm - PrevTime), 10.) - FPS) * 0.05;
 	PrevTime = tm;
-	if (animated && NewPopSize != PopSize) {
-		[self allocPopMem];
+	if (animated) {
+		if (NewPopSize != PopSize) [self allocPopMem];
+		else if (sightDistChanged) [self allocCellMem];
+		sightDistChanged = NO;
 	}
 	if (stopState == StopView) {
 		_view.paused = YES;
@@ -246,6 +254,10 @@ typedef enum { StopNone = 0,
 		[self allocPopMem];
 		_view.needsDisplay = YES;
 	}
+}
+- (void)reviseSightDistance {
+	if (_view.paused) [self allocCellMem];
+	else sightDistChanged = YES;
 }
 - (IBAction)fullScreen:(id)sender {
 	if (_view.inFullScreenMode) {
@@ -292,6 +304,18 @@ typedef enum { StopNone = 0,
 		return ViewPrms.depth != 0. || ViewPrms.scale != 0.;
 	}
 	return YES;
+}
+- (void)windowDidResize:(NSNotification *)notification {
+// for recovery from the side effect of toolbar.
+	static BOOL launched = NO;
+	if (!launched) {
+		launched = YES;
+		NSRect frame = _view.window.frame;
+		NSSize vSize = _view.frame.size;
+		frame.size.width += 1280 - vSize.width;
+		frame.size.height += 720 - vSize.height;
+		[_view.window setFrame:frame display:NO];
+	}
 }
 - (void)windowWillClose:(NSNotification *)notification {
 	[NSApp terminate:nil];

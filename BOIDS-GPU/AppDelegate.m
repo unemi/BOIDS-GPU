@@ -257,11 +257,14 @@ static void set_popSize(NSInteger newSize) {
 - (IBAction)changeValue:(NSControl *)sender {
 	NSInteger tag = sender.tag;
 	CGFloat value = sender.doubleValue;
-	NSArray<NSControl *> *cntrParts = [sender isKindOfClass:NSSlider.class]?
-		(NSArray<NSControl *> *)digits : (NSArray<NSControl *> *)sliders;
-	CGFloat orgVal = cntrParts[tag].doubleValue;
-	cntrParts[tag].doubleValue = value;
+	NSControl *cntrPrt =
+		[sender isKindOfClass:NSSlider.class]? digits[tag] : sliders[tag];
+	CGFloat orgVal = cntrPrt.doubleValue;
+	if (orgVal == value) return;
+	cntrPrt.doubleValue = value;
 	set_param_value(tag, value);
+	if (tag == SIGHT_DIST_IDX)
+		[((AppDelegate *)NSApp.delegate).metalView reviseSightDistance];
 	[undoMngr registerUndoWithTarget:sender handler:^(NSControl *cntl) {
 		cntl.doubleValue = orgVal;
 		[cntl sendAction:cntl.action to:cntl.target]; 

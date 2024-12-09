@@ -21,6 +21,7 @@ typedef struct {
 <MTKViewDelegate, NSMenuItemValidation, NSWindowDelegate>
 @property IBOutlet MyMTKView *view;
 - (void)revisePopSize:(NSInteger)newSize;
+- (void)reviseSightDistance;
 @end
 
 extern CGFloat FPS;

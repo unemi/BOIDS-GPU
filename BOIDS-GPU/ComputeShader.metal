@@ -41,10 +41,10 @@ kernel void moveAgent(device Agent *pop, constant float3 *forces,
 	a.v += ff / params->mass * *deltaTime;
 	a.v *= 1. - params->fric;
 	float v = length(a.v);
-	float pa = atan2(a.v.z, length(a.v.xy));
-	if (abs(pa) > M_PI_4_F) {
-		a.v.z = v / ((pa > 0.)? M_SQRT2_F : -M_SQRT2_F);
-		a.v.xy *= M_SQRT1_2_F / cos(pa);
+	float tilt = atan2(a.v.z, length(a.v.xy));
+	if (abs(tilt) > M_PI_4_F) {
+		a.v.z = v / ((tilt > 0.)? M_SQRT2_F : -M_SQRT2_F);
+		a.v.xy *= M_SQRT1_2_F / cos(tilt);
 	}	
 	if (v > params->maxV) a.v *= params->maxV / v;
 	else if (v < params->minV) a.v *= params->minV / v;

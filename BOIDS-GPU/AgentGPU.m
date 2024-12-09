@@ -33,9 +33,16 @@ void alloc_pop_mem(id<MTLDevice> device) {
 	Pop = popBuf.contents;
 	Forces = forceBuf.contents;
 	Idxs = idxsBuf.contents;
-	pop_mem_init(NewPopSize);
+	if (pop_mem_init(NewPopSize))
+		alloc_cell_mem(device);
 	PopSize = NewPopSize;
 	pop_reset();
+}
+void alloc_cell_mem(id<MTLDevice> device) {
+	cellBuf = [device newBufferWithLength:
+		sizeof(Cell) * N_CELLS_X*N_CELLS_Y*N_CELLS_Z
+		options:MTLResourceStorageModeShared];
+	Cells = cellBuf.contents;
 }
 id<MTLDevice> setup_GPU(void) {
 	id<MTLDevice> device = MTLCreateSystemDefaultDevice();
@@ -46,10 +53,6 @@ id<MTLDevice> setup_GPU(void) {
 			[dfltLib newFunctionWithName:@"moveAgent"] error:&error];
 		if (movePSO == nil) @throw error;
 		commandQueue = device.newCommandQueue;
-		cellBuf = [device newBufferWithLength:
-			sizeof(Cell) * N_CELLS_X*N_CELLS_Y*N_CELLS_Z
-			options:MTLResourceStorageModeShared];
-		Cells = cellBuf.contents;
 		pop_init();
 		NewPopSize = PopSize;
 	} @catch (NSObject *obj) { err_msg(obj, YES); }
