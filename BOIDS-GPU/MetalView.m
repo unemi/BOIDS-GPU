@@ -10,7 +10,7 @@
 #import "AgentGPU.h"
 #import "AppDelegate.h"
 #define LOG_STEPS 200
-//#define MEASURE_TIME
+#define MEASURE_TIME
 #ifdef MEASURE_TIME
 #import <sys/sysctl.h>
 #define REC_TIME(v) unsigned long v = current_time_us();

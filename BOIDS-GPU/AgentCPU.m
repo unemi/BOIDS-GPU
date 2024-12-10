@@ -37,7 +37,7 @@ static int32_t *TmpCellMem = NULL;
 static NSInteger nCores = 0;
 static dispatch_group_t DispatchGrp;
 static dispatch_queue_t DispatchQue;
-static NSInteger *CelIdxs = NULL;
+static uint32_t *CelIdxs = NULL;
 #define MAX_CELL_IDX (simd_int3){N_CELLS_X-1,N_CELLS_Y-1,N_CELLS_Z-1}
 
 unsigned long current_time_us(void) {
@@ -78,7 +78,7 @@ BOOL check_cell_unit(NSInteger popSize) {
 	return revised;
 }
 BOOL pop_mem_init(NSInteger popSize) {
-	CelIdxs = realloc(CelIdxs, sizeof(NSInteger) * popSize);
+	CelIdxs = realloc(CelIdxs, sizeof(uint32_t) * popSize);
 	BOOL cellUnitRevised = check_cell_unit(popSize);
 	WS = (simd_float3){CellSize*N_CELLS_X, CellSize*N_CELLS_Y, CellSize*N_CELLS_Z};
 	return cellUnitRevised;
@@ -106,7 +106,7 @@ void set_sim_params(void) {
 static BOOL merge_sort(Task *src, Task *work, NSInteger n) {
 	if (n <= (PopSize + nCores - 1) / nCores) {
 		qsort_b(src, n, sizeof(Task), ^(const void *a, const void *b){
-			NSInteger p = ((Task *)a)->nc, q = ((Task *)b)->nc;
+			uint32_t p = ((Task *)a)->nc, q = ((Task *)b)->nc;
 			return (p > q)? -1 : (p < q)? 1 : 0;
 		});
 		return NO;
@@ -144,7 +144,7 @@ static BOOL merge_sort(Task *src, Task *work, NSInteger n) {
 void pop_step1(void) {
 	memset(Cells, 0, sizeof(Cell) * N_CELLS);
 	int32_t *ii = TmpCellMem, *cn = ii + N_CELLS;
-	memset(ii, 0, sizeof(NSInteger) * N_CELLS * (nCores + 1));
+	memset(ii, 0, sizeof(int32_t) * N_CELLS * (nCores + 1));
 	NSInteger nAg = PopSize / nCores;
 	void (^block)(NSInteger, NSInteger) = ^(NSInteger from, NSInteger to) {
 		int32_t *ccn = cn + N_CELLS * from / nAg;

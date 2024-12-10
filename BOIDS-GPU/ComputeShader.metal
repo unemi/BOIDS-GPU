@@ -17,7 +17,7 @@ kernel void moveAgent(device Agent *pop, constant float3 *forces,
 	Agent a = pop[aIdx];
 	float3 ff = forces[aIdx], cc = 0., aa = 0.;
 	float sumDI = 0.;
-	for (int i = 0; i < tsk.n; i ++) {
+	for (uint i = 0; i < tsk.n; i ++) {
 		Cell c = cells[tsk.cIdxs[i]];
 		for (uint j = 0; j < c.n; j ++) {
 			int bIdx = idxs[c.start + j];
