@@ -8,8 +8,8 @@
 #include <metal_stdlib>
 using namespace metal;
 typedef struct { float3 p, v; } Agent;
-typedef struct { long start, n; } Cell;
-typedef struct { long idx, nc; int n, cIdxs[8]; } Task;
+typedef struct { uint start, n; } Cell;
+typedef struct { uint idx, nc, n, cIdxs[8]; } Task;
 typedef struct {
 	float avoid, cohide, align, sightD, sightA,
 		mass, maxV, minV, fric;

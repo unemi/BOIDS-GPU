@@ -50,8 +50,8 @@ void error_msg(NSString *msg, short err) {
 @implementation AppDelegate
 //- (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
 //}
-- (void)applicationWillTerminate:(NSNotification *)aNotification {
-	[_pnlCntl appTerminate];
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
+	return _pnlCntl? [_pnlCntl appTerminate] : NSTerminateNow;
 }
 - (BOOL)applicationSupportsSecureRestorableState:(NSApplication *)app {
 	return YES;
@@ -167,8 +167,7 @@ void load_defaults(void) {
 	NSArray<NSNumber *> *arr;
 	if ((arr = [ud objectForKey:ColorNames[ColorBg]]) != nil) {
 		MyRGB rgb = Colors[ColorBg] = myRGB_from_array(arr);
-		((AppDelegate *)NSApp.delegate).metalView.view.clearColor
-			= (MTLClearColor){rgb.red, rgb.green, rgb.blue, 1.};
+		WallRGB = (simd_float3){rgb.red, rgb.green, rgb.blue};
 	}
 	if ((arr = [ud objectForKey:ColorNames[ColorBird]]) != nil) {
 		MyRGB rgb = Colors[ColorBird] = myRGB_from_array(arr);
@@ -217,16 +216,20 @@ static void displayReconfigCB(CGDirectDisplayID display,
 		error_msg(@"Could not register a callback for display reconfiguration,", error);
 	[self checkButtonEnabled];
 }
-- (void)appTerminate {
-	if (!saveBtn.enabled) return;
+- (NSApplicationTerminateReply)appTerminate {
+	if (!saveBtn.enabled) return NSTerminateNow;
 	NSAlert *alert = NSAlert.new;
 	alert.alertStyle = NSAlertStyleWarning;
 	alert.messageText = @"Do you want to save the settings?";
 	alert.informativeText = @"Parameter values have changed but not saved as defaults.";
 	[alert addButtonWithTitle:@"Save"];
 	[alert addButtonWithTitle:@"Don't save"];
-	if ([alert runModal] == NSAlertFirstButtonReturn)
-		[self saveAsDefault:saveBtn];
+	[alert addButtonWithTitle:@"Cancel"];
+	switch ([alert runModal]) {
+		case NSAlertFirstButtonReturn: [self saveAsDefault:saveBtn];
+		case NSAlertSecondButtonReturn: return NSTerminateNow;
+		default: return NSTerminateCancel;
+	}
 }
 - (void)resetCamera {
 	depthSld.doubleValue = scaleSld.doubleValue = 0.;
@@ -279,11 +282,10 @@ static void set_popSize(NSInteger newSize) {
 }
 static void set_color_value(NSInteger idx, MyRGB rgb) {
 	MTKView *view = ((AppDelegate *)NSApp.delegate).metalView.view;
+	simd_float3 RGB = (simd_float3){rgb.red, rgb.green, rgb.blue};
 	switch (idx) {
-		case ColorBg:
-		view.clearColor = (MTLClearColor){rgb.red, rgb.green, rgb.blue, 1.};
-		break;
-		case ColorBird: BirdRGB = (simd_float3){rgb.red, rgb.green, rgb.blue};
+		case ColorBg: WallRGB = RGB; break;
+		case ColorBird: BirdRGB = RGB;
 	}
 	if (view.paused) view.needsDisplay = YES;
 }

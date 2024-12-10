@@ -32,8 +32,8 @@ Agent *Pop = NULL;
 simd_float3 *Forces;
 Cell *Cells;
 Task *TaskQueue, *TasQWork;
-NSInteger *Idxs;
-static NSInteger *TmpCellMem = NULL;
+uint32_t *Idxs;
+static int32_t *TmpCellMem = NULL;
 static NSInteger nCores = 0;
 static dispatch_group_t DispatchGrp;
 static dispatch_queue_t DispatchQue;
@@ -72,9 +72,8 @@ BOOL check_cell_unit(NSInteger popSize) {
 	} else CellSize /= cellUnit;
 	BOOL revised = cellUnit != CellUnit;
 	if (revised) {
-		NSLog(@"cell unit = %d", cellUnit);
 		CellUnit = cellUnit;
-		TmpCellMem = realloc(TmpCellMem, sizeof(NSInteger) * N_CELLS * (nCores + 1));
+		TmpCellMem = realloc(TmpCellMem, sizeof(int32_t) * N_CELLS * (nCores + 1));
 	}
 	return revised;
 }
@@ -144,14 +143,15 @@ static BOOL merge_sort(Task *src, Task *work, NSInteger n) {
 }
 void pop_step1(void) {
 	memset(Cells, 0, sizeof(Cell) * N_CELLS);
-	NSInteger *ii = TmpCellMem, *cn = ii + N_CELLS;
+	int32_t *ii = TmpCellMem, *cn = ii + N_CELLS;
 	memset(ii, 0, sizeof(NSInteger) * N_CELLS * (nCores + 1));
 	NSInteger nAg = PopSize / nCores;
 	void (^block)(NSInteger, NSInteger) = ^(NSInteger from, NSInteger to) {
+		int32_t *ccn = cn + N_CELLS * from / nAg;
 		for (NSInteger i = from; i < to; i ++) {
-			simd_int3 v = simd_clamp(simd_int(Pop[i].p/CellSize), 0, MAX_CELL_IDX);
+			simd_int3 v = simd_int(Pop[i].p / CellSize);
 			CelIdxs[i] = (v.x * N_CELLS_Y + v.y) * N_CELLS_Z + v.z;
-			cn[CelIdxs[i] + N_CELLS * from/nAg] ++;
+			ccn[CelIdxs[i]] ++;
 		}
 	};
 	for (NSInteger i = 0; i < nCores-1; i ++)
@@ -161,12 +161,12 @@ void pop_step1(void) {
 	for (NSInteger i = 0; i < nCores; i ++)
 	for (NSInteger j = 0; j < N_CELLS; j ++)
 		Cells[j].n += cn[j + N_CELLS * i];
-	NSInteger nn = 0;
+	uint32_t nn = 0;
 	for (NSInteger i = 0; i < N_CELLS; i ++)
 		{ Cells[i].start = nn; nn += Cells[i].n; }
 	for (NSInteger i = 0; i < PopSize; i ++) {
 		NSInteger cIdx = CelIdxs[i];
-		Idxs[Cells[cIdx].start + (ii[cIdx] ++)] = i;
+		Idxs[Cells[cIdx].start + (ii[cIdx] ++)] = (uint32_t)i;
 	}
 }
 void pop_step2(void) {
@@ -211,11 +211,11 @@ BOOL pop_step3(void) {
 			if (rp[i] > rUp && to[i] < upLm[i]) to[i] ++;
 			else if (rp[i] < rLow && from[i] > 0) from[i] --;  
 		}
-		Task tsk = {.idx = aIdx, .nc = 0, .n = 0};
-		for (NSInteger i = from.x; i <= to.x; i ++)
-		for (NSInteger j = from.y; j <= to.y; j ++)
-		for (NSInteger k = from.z; k <= to.z; k ++) {
-			int idx = (int)((i * N_CELLS_Y + j) * N_CELLS_Z + k);
+		Task tsk = {.idx = (int)aIdx, .nc = 0, .n = 0};
+		for (int i = from.x; i <= to.x; i ++)
+		for (int j = from.y; j <= to.y; j ++)
+		for (int k = from.z; k <= to.z; k ++) {
+			int idx = (i * N_CELLS_Y + j) * N_CELLS_Z + k;
 			tsk.cIdxs[tsk.n ++] = idx;
 			tsk.nc += Cells[idx].n;
 		}

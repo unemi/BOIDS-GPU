@@ -8,7 +8,7 @@
 #include "ShaderHeader.metal"
 
 kernel void moveAgent(device Agent *pop, constant float3 *forces,
-	constant Cell *cells, constant long *idxs, constant Task *tasks,
+	constant Cell *cells, constant uint *idxs, constant Task *tasks,
 	constant float *deltaTime, constant float3 *size, constant Params *params,
 	uint index [[thread_position_in_grid]]) {
 
@@ -19,7 +19,7 @@ kernel void moveAgent(device Agent *pop, constant float3 *forces,
 	float sumDI = 0.;
 	for (int i = 0; i < tsk.n; i ++) {
 		Cell c = cells[tsk.cIdxs[i]];
-		for (int j = 0; j < c.n; j ++) {
+		for (uint j = 0; j < c.n; j ++) {
 			int bIdx = idxs[c.start + j];
 			if (bIdx == aIdx) continue;
 			Agent b = pop[bIdx];

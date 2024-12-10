@@ -24,7 +24,7 @@ void alloc_pop_mem(id<MTLDevice> device) {
 		options:MTLResourceStorageModeShared];
 	forceBuf = [device newBufferWithLength:sizeof(simd_float3) * NewPopSize
 		options:MTLResourceStorageModeShared];
-	idxsBuf = [device newBufferWithLength:sizeof(NSInteger) * NewPopSize
+	idxsBuf = [device newBufferWithLength:sizeof(uint32_t) * NewPopSize
 		options:MTLResourceStorageModeShared];
 	vxBuf = [device newBufferWithLength:sizeof(simd_float2) * NewPopSize * 6
 		options:MTLResourceStorageModePrivate];

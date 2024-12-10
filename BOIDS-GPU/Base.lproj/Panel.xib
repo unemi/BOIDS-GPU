@@ -54,7 +54,7 @@
                 <rect key="frame" x="0.0" y="0.0" width="324" height="581"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="XId-04-CtE">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="XId-04-CtE">
                         <rect key="frame" x="23" y="514" width="71" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Avoidance:" id="SdT-m5-HZL">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -71,10 +71,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="hhN-ru-NuP">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="hhN-ru-NuP">
                         <rect key="frame" x="254" y="511" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="wPc-G5-Ckh">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="sd3-ZH-zQT">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="sd3-ZH-zQT">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -83,7 +83,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="LwG-Nf-8kj">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="LwG-Nf-8kj">
                         <rect key="frame" x="29" y="483" width="65" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Cohesion:" id="Qqp-qq-5Bq">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -100,10 +100,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Met-Bd-HR5">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Met-Bd-HR5">
                         <rect key="frame" x="254" y="480" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="p3R-sb-6Le">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="lAq-54-EEE">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="lAq-54-EEE">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -112,7 +112,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="7L2-Vp-Ngc">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="7L2-Vp-Ngc">
                         <rect key="frame" x="25" y="452" width="69" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Alignment:" id="5ti-Ca-xiI">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -129,10 +129,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="MlQ-zH-dWs">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="MlQ-zH-dWs">
                         <rect key="frame" x="254" y="449" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="UJt-2Q-Xe5">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="SBR-mm-ieJ">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="SBR-mm-ieJ">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -141,7 +141,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="XoT-mN-rPE">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="XoT-mN-rPE">
                         <rect key="frame" x="46" y="421" width="48" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Sight r:" id="cgL-Ft-5IC">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -158,10 +158,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="KAg-md-fnu">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="KAg-md-fnu">
                         <rect key="frame" x="254" y="418" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="5GQ-dO-CH9">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="HuV-l2-Z7W">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="HuV-l2-Z7W">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -170,7 +170,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9GZ-OF-m7I">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9GZ-OF-m7I">
                         <rect key="frame" x="43" y="390" width="51" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Sight θ:" id="WsK-QX-ujG">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -187,10 +187,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Zo5-IX-lPp">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Zo5-IX-lPp">
                         <rect key="frame" x="254" y="387" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="wqu-WH-DSb">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="LOU-FX-5A7">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="LOU-FX-5A7">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -199,7 +199,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="GV5-Kn-l9M">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="GV5-Kn-l9M">
                         <rect key="frame" x="18" y="328" width="76" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Max Speed:" id="TH6-SM-aH6">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -216,10 +216,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="d1g-B0-AFZ">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="d1g-B0-AFZ">
                         <rect key="frame" x="254" y="356" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="JHJ-aX-UzD">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="BzT-Zc-geL">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="BzT-Zc-geL">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -228,7 +228,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="20k-ZW-wyG">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="20k-ZW-wyG">
                         <rect key="frame" x="22" y="297" width="72" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Min Speed:" id="yXy-ms-0ra">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -245,10 +245,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aGp-Vm-4No">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aGp-Vm-4No">
                         <rect key="frame" x="254" y="325" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="Mh2-Cl-rTw">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="tS8-vq-faD">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="tS8-vq-faD">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -257,7 +257,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="tmb-uZ-0fU">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="tmb-uZ-0fU">
                         <rect key="frame" x="40" y="266" width="54" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Friction:" id="hNZ-MB-tAY">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -265,7 +265,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="C4Q-Jr-Lje">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="C4Q-Jr-Lje">
                         <rect key="frame" x="18" y="135" width="81" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Background:" id="7Ob-eL-O4i">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -273,7 +273,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="36Q-tw-oNE">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="36Q-tw-oNE">
                         <rect key="frame" x="18" y="104" width="75" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Full Screen:" id="LnC-78-8Kt">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -290,10 +290,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="O3G-g2-xfE">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="O3G-g2-xfE">
                         <rect key="frame" x="254" y="294" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="Ws4-9d-lpN">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="wbc-RZ-3RY">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="wbc-RZ-3RY">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -302,7 +302,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="XXe-Gy-7QZ">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="XXe-Gy-7QZ">
                         <rect key="frame" x="54" y="359" width="40" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Mass:" id="l6J-Be-uQ8">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -319,10 +319,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jZM-bV-ojS">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jZM-bV-ojS">
                         <rect key="frame" x="254" y="263" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="AD6-FY-zbV">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="InY-SA-Mcx">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="InY-SA-Mcx">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -340,10 +340,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Da6-gK-PVQ">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Da6-gK-PVQ">
                         <rect key="frame" x="254" y="163" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="aIB-6K-SpM">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="Msx-Rp-sur">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="Msx-Rp-sur">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -392,7 +392,7 @@
                             <action selector="changeColour:" target="-2" id="cVj-Di-UkD"/>
                         </connections>
                     </colorWell>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="wfz-JP-xD8">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="wfz-JP-xD8">
                         <rect key="frame" x="158" y="135" width="39" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Birds:" id="gj9-j5-fEh">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -416,7 +416,7 @@
                     <box verticalHuggingPriority="750" boxType="separator" translatesAutoresizingMaskIntoConstraints="NO" id="ACt-mQ-O2s">
                         <rect key="frame" x="0.0" y="252" width="324" height="5"/>
                     </box>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Xzh-5N-gKJ">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Xzh-5N-gKJ">
                         <rect key="frame" x="125" y="540" width="70" height="21"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="70" id="fHZ-ki-SBJ"/>
@@ -443,7 +443,7 @@
                             <action selector="applyNewPopSize:" target="-2" id="Adk-mY-KMd"/>
                         </connections>
                     </button>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="daS-rv-Sob">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="daS-rv-Sob">
                         <rect key="frame" x="18" y="543" width="101" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Population Size:" id="Rv2-OL-RxB">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -468,7 +468,7 @@
                             <action selector="chooseScreen:" target="-2" id="qLu-uB-kfu"/>
                         </connections>
                     </popUpButton>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="ohI-P0-3kq">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="ohI-P0-3kq">
                         <rect key="frame" x="18" y="166" width="90" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Wall Contrast:" id="1fe-ZM-fbR">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -485,10 +485,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Bzp-Jp-LaZ">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Bzp-Jp-LaZ">
                         <rect key="frame" x="254" y="225" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="u68-H3-ixl">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="pm8-DQ-5WT">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="pm8-DQ-5WT">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -497,7 +497,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="e60-VW-8oC">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="e60-VW-8oC">
                         <rect key="frame" x="22" y="228" width="86" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Camera Dist.:" id="45N-LY-vEx">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -514,10 +514,10 @@
                             <font key="font" size="12" name="Helvetica"/>
                         </sliderCell>
                     </slider>
-                    <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="WqH-rx-u7O">
+                    <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="WqH-rx-u7O">
                         <rect key="frame" x="254" y="194" width="50" height="21"/>
                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="right" title="-0.999" drawsBackground="YES" id="04h-IZ-9A0">
-                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" formatWidth="1" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="Q0V-QG-ygI">
+                            <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="1" minimumFractionDigits="3" maximumFractionDigits="3" id="Q0V-QG-ygI">
                                 <real key="minimum" value="-1"/>
                                 <real key="maximum" value="1"/>
                             </numberFormatter>
@@ -526,7 +526,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="t2W-Yf-Jck">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="t2W-Yf-Jck">
                         <rect key="frame" x="67" y="197" width="41" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Scale:" id="ajg-vu-onU">
                             <font key="font" usesAppearanceFont="YES"/>

@@ -25,7 +25,7 @@ typedef struct {
 @end
 
 extern CGFloat FPS;
-extern simd_float3 BirdRGB;
+extern simd_float3 WallRGB, BirdRGB;
 extern ViewParams ViewPrms, DfltViewPrms;
 extern NSString * _Nonnull ViewPrmLbls[];
 

@@ -16,8 +16,8 @@ NS_ASSUME_NONNULL_BEGIN
 #define N_CELLS (N_CELLS_X*N_CELLS_Y*N_CELLS_Z)
 
 typedef struct { simd_float3 p, v; } Agent;
-typedef struct { NSInteger start, n; } Cell;
-typedef struct { NSInteger idx, nc; int n, cIdxs[8]; } Task;
+typedef struct { uint32_t start, n; } Cell;
+typedef struct { uint32_t idx, nc, n, cIdxs[8]; } Task;
 typedef struct {
 	float avoid, cohide, align, sightDist, sightAngle,
 		mass, maxV, minV, fric;
@@ -35,7 +35,7 @@ extern Agent *Pop;
 extern simd_float3 *Forces;
 extern Cell *Cells;
 extern Task *TaskQueue, *TasQWork;
-extern NSInteger *Idxs;
+extern uint32_t *Idxs;
 extern unsigned long current_time_us(void);
 extern void pop_reset(void);
 extern BOOL check_cell_unit(NSInteger popSize);

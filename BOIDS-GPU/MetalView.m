@@ -10,15 +10,16 @@
 #import "AgentGPU.h"
 #import "AppDelegate.h"
 #define LOG_STEPS 200
-#define MEASURE_TIME
+//#define MEASURE_TIME
 #ifdef MEASURE_TIME
+#import <sys/sysctl.h>
 #define REC_TIME(v) unsigned long v = current_time_us();
 #else
 #define REC_TIME(v)
 #endif
 
 CGFloat FPS = 10.;
-simd_float3 BirdRGB = {1,1,1};
+simd_float3 WallRGB = {0,0,0}, BirdRGB = {1,1,1};
 ViewParams ViewPrms = {.depth = 0., .scale = 0., .contrast = 0.};
 NSString * _Nonnull ViewPrmLbls[] = { @"Depth", @"Scale", @"Contrast" };
 typedef id<MTLComputeCommandEncoder> CCE;
@@ -134,8 +135,17 @@ typedef enum { StopNone = 0,
 		Step ++;
 #ifdef MEASURE_TIME
 		TMI += (deltaTime - TMI) * 0.05;
-		if (Step % LOG_STEPS == 0)
-			printf("%ld:%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n", Step, TM1, TM2, TM3, TM4, TMG, TMI);
+		if (Step == 1) {
+			static char name[128] = {0};
+			if (name[0] == '\0') {
+				size_t len = sizeof(name);
+				sysctlbyname("hw.model", name, &len, NULL, 0);
+			}
+			NSString *str = NSProcessInfo.processInfo.operatingSystemVersionString;
+			printf("\"%s\",\"%s\",%ld,%d\n", name, str.UTF8String, PopSize, N_CELLS);
+		} else if (Step % LOG_STEPS == 0)
+			printf("%ld,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+				Step, TM1, TM2, TM3, TM4, TMG, TMI);
 #endif
 		[memLock lock];
 		REC_TIME(tm1)
@@ -194,28 +204,24 @@ typedef enum { StopNone = 0,
 	rce.label = @"MyRenderEncoder";
 	[rce setViewport:(MTLViewport){viewportRect.origin.x, viewportRect.origin.y,
 		viewportRect.size.width, viewportRect.size.height, 0., 1. }];
-	if (ViewPrms.contrast > -1.) {
-		static uint16 cornersIdx[4][4] = // Left, Right, Cieling, and Back
-			{{0, 2, 4, 6}, {1, 3, 5, 6}, {2, 3, 6, 7}, {4, 5, 6, 7}};
-		static float surfaceDim[4] = {.5, .5, 1., .75};
-		MTLClearColor cc = _view.clearColor;
-		simd_float3 baseCol = (simd_float3){cc.red, cc.green, cc.blue};
-		[rce setRenderPipelineState:bgPSO];
-		idx = 0;
-		[rce setVertexBytes:&WS length:sizeof(WS) atIndex:idx ++];
-		[rce setVertexBytes:&camP length:sizeof(camP) atIndex:idx ++];
-		for (NSInteger i = 0; i < 4; i ++) {
-			simd_float3 corners[4], col;
-			for (NSInteger j = 0; j < 4; j ++) {
-				uint16 k = cornersIdx[i][j];
-				corners[j] = WS * (simd_float3){k % 2, (k / 2) % 2, k / 4};
-			}
-			col = baseCol + surfaceDim[i] * (ViewPrms.contrast + 1.) / 2. * (1. - baseCol);
-			[rce setVertexBytes:corners length:sizeof(corners) atIndex:idx];
-			[rce setFragmentBytes:&col length:sizeof(col) atIndex:0];
-			[rce drawPrimitives:MTLPrimitiveTypeTriangleStrip
-				vertexStart:0 vertexCount:4];
+	static uint16 cornersIdx[5][4] = // Floor, Left, Right, Cieling, and Back
+		{{0, 1, 2, 3}, {0, 2, 4, 6}, {1, 3, 5, 6}, {2, 3, 6, 7}, {4, 5, 6, 7}};
+	static float surfaceDim[5] = {0., .5, .5, 1., .75};
+	[rce setRenderPipelineState:bgPSO];
+	idx = 0;
+	[rce setVertexBytes:&WS length:sizeof(WS) atIndex:idx ++];
+	[rce setVertexBytes:&camP length:sizeof(camP) atIndex:idx ++];
+	for (NSInteger i = 0; i < 5; i ++) {
+		simd_float3 corners[4], col;
+		for (NSInteger j = 0; j < 4; j ++) {
+			uint16 k = cornersIdx[i][j];
+			corners[j] = WS * (simd_float3){k % 2, (k / 2) % 2, k / 4};
 		}
+		col = WallRGB + surfaceDim[i] * (ViewPrms.contrast + 1.) / 2. * (1. - WallRGB);
+		[rce setVertexBytes:corners length:sizeof(corners) atIndex:idx];
+		[rce setFragmentBytes:&col length:sizeof(col) atIndex:0];
+		[rce drawPrimitives:MTLPrimitiveTypeTriangleStrip
+			vertexStart:0 vertexCount:4];
 	}
 	[rce setRenderPipelineState:drawPSO];
 	[rce setVertexBuffer:vxBuf offset:0 atIndex:0];
