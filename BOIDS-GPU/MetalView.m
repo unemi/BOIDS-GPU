@@ -24,8 +24,6 @@ ViewParams ViewPrms = {.depth = 0., .scale = 0., .contrast = 0.};
 NSString * _Nonnull ViewPrmLbls[] = { @"Depth", @"Scale", @"Contrast" };
 typedef id<MTLComputeCommandEncoder> CCE;
 typedef id<MTLRenderCommandEncoder> RCE;
-typedef enum { StopNone = 0,
-	StopCompute = 1, StopView = 2, StopAndRestart = 4 } StopState;
 
 @interface MetalView () {
 	IBOutlet NSMenu *menu;
@@ -36,16 +34,15 @@ typedef enum { StopNone = 0,
 	IBOutlet NSToolbarItem *playItem, *fullScrItem;
 	IBOutlet NSTextField *fpsDgt;
 	NSRect viewportRect;
-	NSConditionLock *drawLock;
-	NSLock *memLock;
+	NSLock *drawLock;
 	NSTimer *fpsTimer;
 	NSToolbar *toolbar;
 #ifdef MEASURE_TIME
 	CGFloat TM1, TM2, TM3, TM4, TMI, TMG;
 #endif
-	unsigned long PrevTime;
-	StopState stopState;
-	BOOL shouldRestart, sightDistChanged;
+	unsigned long PrevTimeSim, PrevTimeDraw;
+	NSTimeInterval refreshSec;
+	BOOL running, shouldRestart, sightDistChanged;
 }
 - (void)switchFpsTimer:(BOOL)on {
 	if (on) {
@@ -57,16 +54,12 @@ typedef enum { StopNone = 0,
 		fpsTimer = nil;
 	}
 }
-- (void)allocPopMem {
-	[memLock lock];
-	alloc_pop_mem(_view.device);
-	[memLock unlock];
+- (void)getScreenRefreshTime {
+	refreshSec = _view.window.screen.displayUpdateGranularity;
 }
 - (void)allocCellMem {
-	[memLock lock];
 	if (check_cell_unit(PopSize))
 		alloc_cell_mem(_view.device);
-	[memLock unlock];
 }
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object
 	change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
@@ -75,6 +68,7 @@ typedef enum { StopNone = 0,
 - (void)awakeFromNib {
 	[(toolbar = _view.window.toolbar) addObserver:self forKeyPath:@"visible"
 		options:NSKeyValueObservingOptionNew context:NULL];
+	[self getScreenRefreshTime];
 	@try {
 		load_defaults();
 		NSError *error;
@@ -101,9 +95,8 @@ typedef enum { StopNone = 0,
 		pplnStDesc.vertexFunction = [dfltLib newFunctionWithName:@"vertexShader"];
 		drawPSO = [device newRenderPipelineStateWithDescriptor:pplnStDesc error:&error];
 		if (drawPSO == nil) @throw error;
-		drawLock = [NSConditionLock.alloc initWithCondition:0];
-		memLock = NSLock.new;
-		[self allocPopMem];
+		drawLock = NSLock.new;
+		alloc_pop_mem(_view.device);
 		_view.paused = YES;
 		_view.enableSetNeedsDisplay = YES;
 	} @catch (NSObject *obj) { err_msg(obj, YES); }
@@ -125,12 +118,15 @@ typedef enum { StopNone = 0,
 	[NSThread detachNewThreadSelector:@selector(compute:) toTarget:self withObject:nil];
 }
 - (void)compute:(id)dummy {
-	static unsigned long time_us = 0;
 	NSThread.currentThread.name = @"compute";
-	while (stopState == StopNone) {
+	while (running) {
+		if (NewPopSize != PopSize) alloc_pop_mem(_view.device);
+		else if (sightDistChanged) [self allocCellMem];
+		if (shouldRestart) pop_reset();
+		shouldRestart = sightDistChanged = NO;
 		unsigned long now = current_time_us();
-		CGFloat interval = (now - time_us) / 1e6;
-		time_us = now;
+		CGFloat interval = (now - PrevTimeSim) / 1e6;
+		PrevTimeSim = now;
 		float deltaTime = fmin(interval, 1./20.) * 1000.;
 		Step ++;
 #ifdef MEASURE_TIME
@@ -147,7 +143,6 @@ typedef enum { StopNone = 0,
 			printf("%ld,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
 				Step, TM1, TM2, TM3, TM4, TMG, TMI);
 #endif
-		[memLock lock];
 		REC_TIME(tm1)
 		pop_step1();
 		REC_TIME(tm2);
@@ -159,19 +154,22 @@ typedef enum { StopNone = 0,
 			TasQWork = taskBf[1 - taskBfIdx].contents;
 		}
 		REC_TIME(tm4);
-		[drawLock lockWhenCondition:0];
 		pop_step4(deltaTime);
-		[drawLock unlockWithCondition:1];
-		[memLock unlock];
+		[drawLock lock];
+		memcpy(PopDraw, PopSim, sizeof(Agent) * PopSize);
+		[drawLock unlock];
+		in_main_thread( ^{ self.view.needsDisplay = YES; });
+		unsigned long tmE = current_time_us();
 #ifdef MEASURE_TIME
 		TM1 += ((tm2 - tm1) / 1000. - TM1) * 0.05;
 		TM2 += ((tm3 - tm2) / 1000. - TM2) * 0.05;
 		TM3 += ((tm4 - tm3) / 1000. - TM3) * 0.05;
-		TM4 += ((current_time_us() - tm4) / 1000. - TM4) * 0.05;
+		TM4 += ((tmE - tm4) / 1000. - TM4) * 0.05;
 #endif
-		if (NewPopSize != PopSize || sightDistChanged) usleep(100000/3);
+		long timeLeft = refreshSec * .95e6 - (tmE - now);
+		if (timeLeft > 100) usleep((unsigned int)timeLeft);
+		else usleep(100);
 	}
-	stopState = ((stopState & StopAndRestart) | StopView);
 }
 - (void)drawInMTKView:(MTKView *)view {
 	BOOL animated = !view.paused;
@@ -181,21 +179,21 @@ typedef enum { StopNone = 0,
 	NSInteger idx = 0;
 	REC_TIME(tm1);
 	simd_float2 camP = {WS.z * pow(10., ViewPrms.depth), pow(10., ViewPrms.scale)};
-	[cce setBuffer:popBuf offset:0 atIndex:idx ++];
+	[cce setBuffer:popDrawBuf offset:0 atIndex:idx ++];
 	[cce setBytes:&WS length:sizeof(WS) atIndex:idx ++];
 	[cce setBytes:&camP length:sizeof(camP) atIndex:idx ++];
 	[cce setBuffer:vxBuf offset:0 atIndex:idx ++];
 	NSUInteger threadGrpSz = shapePSO.maxTotalThreadsPerThreadgroup;
-		if (threadGrpSz > PopSize) threadGrpSz = PopSize;
+	if (threadGrpSz > PopSize) threadGrpSz = PopSize;
 	[cce dispatchThreads:MTLSizeMake(PopSize, 1, 1)
 		threadsPerThreadgroup:MTLSizeMake(threadGrpSz, 1, 1)];
 	[cce endEncoding];
 	REC_TIME(tm2);
-	if (animated) [drawLock lockWhenCondition:1];
+	if (animated) [drawLock lock];
 	REC_TIME(tm3);
 	[cmdBuf commit];
 	[cmdBuf waitUntilCompleted];
-	if (animated) [drawLock unlockWithCondition:0];
+	if (animated) [drawLock unlock];
 
 	cmdBuf = commandQueue.commandBuffer;
 	MTLRenderPassDescriptor *rndrPasDesc = view.currentRenderPassDescriptor;
@@ -217,7 +215,9 @@ typedef enum { StopNone = 0,
 			uint16 k = cornersIdx[i][j];
 			corners[j] = WS * (simd_float3){k % 2, (k / 2) % 2, k / 4};
 		}
-		col = WallRGB + surfaceDim[i] * (ViewPrms.contrast + 1.) / 2. * (1. - WallRGB);
+		col = WallRGB + ((ViewPrms.contrast > 0.)?
+				surfaceDim[i] * ViewPrms.contrast :
+				(1. - surfaceDim[i]) * - ViewPrms.contrast) * (1. - WallRGB);
 		[rce setVertexBytes:corners length:sizeof(corners) atIndex:idx];
 		[rce setFragmentBytes:&col length:sizeof(col) atIndex:0];
 		[rce drawPrimitives:MTLPrimitiveTypeTriangleStrip
@@ -236,34 +236,19 @@ typedef enum { StopNone = 0,
 #ifdef MEASURE_TIME
 	TMG += ((tm - tm3 + tm2 - tm1) / 1000. - TMG) * 0.05;
 #endif
-	FPS += (fmax(1e6 / (tm - PrevTime), 10.) - FPS) * 0.05;
-	PrevTime = tm;
-	if (animated) {
-		if (NewPopSize != PopSize) [self allocPopMem];
-		else if (sightDistChanged) [self allocCellMem];
-		sightDistChanged = NO;
-	}
-	if (stopState == StopView) {
-		_view.paused = YES;
-		playItem.image = [NSImage imageNamed:NSImageNameTouchBarPlayTemplate];
-		playItem.label = @"Play";
-		[self switchFpsTimer:NO];
-	} else if (stopState == (StopView|StopAndRestart)) {
-		pop_reset();
-		stopState = StopNone;
-		[self detachComputeThread];
-	}
+	FPS += (fmax(1e6 / (tm - PrevTimeDraw), 10.) - FPS) * 0.05;
+	PrevTimeDraw = tm;
 }
 - (void)revisePopSize:(NSInteger)newSize {
 	NewPopSize = newSize;
-	if (_view.paused) {
-		[self allocPopMem];
+	if (!running) {
+		alloc_pop_mem(_view.device);
 		_view.needsDisplay = YES;
 	}
 }
 - (void)reviseSightDistance {
-	if (_view.paused) [self allocCellMem];
-	else sightDistChanged = YES;
+	if (running) sightDistChanged = YES;
+	else [self allocCellMem];
 }
 - (IBAction)fullScreen:(id)sender {
 	if (_view.inFullScreenMode) {
@@ -278,22 +263,26 @@ typedef enum { StopNone = 0,
 		[_view enterFullScreenMode:screen withOptions:
 			@{NSFullScreenModeAllScreens:@NO}];
 	}
+	[self getScreenRefreshTime];
 }
 - (IBAction)playPause:(id)sender {
-	if (_view.paused) {
-		stopState = StopNone;
+	if ((running = !running)) {
 		playItem.image = [NSImage imageNamed:NSImageNameTouchBarPauseTemplate];
 		playItem.label = @"Pause";
-		_view.paused = NO;
 		if (toolbar.visible) [self switchFpsTimer:YES];
 		[self detachComputeThread];
-	} else stopState = StopCompute;
+	} else {
+		playItem.image = [NSImage imageNamed:NSImageNameTouchBarPlayTemplate];
+		playItem.label = @"Play";
+		[self switchFpsTimer:NO];
+	}
 }
 - (IBAction)restart:(id)sender {
-	if (_view.paused) {
+	if (running) shouldRestart = YES;
+	else {
 		pop_reset();
 		_view.needsDisplay = YES;
-	} else stopState = (StopCompute|StopAndRestart);
+	}
 }
 - (IBAction)resetCamera:(id)sender {
 	if (((AppDelegate *)NSApp.delegate).pnlCntl != nil)
@@ -325,6 +314,9 @@ typedef enum { StopNone = 0,
 }
 - (void)windowWillClose:(NSNotification *)notification {
 	[NSApp terminate:nil];
+}
+- (void)windowDidChangeScreenProfile:(NSNotification *)notification {
+	[self getScreenRefreshTime];
 }
 - (void)escKeyDown {
 	if (_view.inFullScreenMode) [self fullScreen:nil];

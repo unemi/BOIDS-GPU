@@ -18,27 +18,26 @@ float CellSize;
 #define NEAR_DIST (STD_CELSIZE*.75) // max distance to neighbor
 simd_float3 WS;	// World Size
 Params PrmsUI, PrmsSim;
-static Params PrmsSTD = { .avoid = .05, .cohide = 1e-3, .align = .05,
-	.sightDist = 1., .sightAngle = 1.,
-	.mass = 2., .maxV = .05, .minV = .02, .fric = .05 },
+static Params PrmsSTD = { .avoid = .03, .cohide = 6e-4, .align = .05,
+		.sightDist = 1., .sightAngle = 1.,
+		.mass = 2., .maxV = .05, .minV = .02, .fric = .05 },
 	PrmsBase = { .avoid = 5., .cohide = 5., .align = 10.,
-	.sightDist = 2., .sightAngle = 2.,
-	.mass = 5., .maxV = 2., .minV = 2., .fric = 5. };
+		.sightDist = 2., .sightAngle = 2.,
+		.mass = 5., .maxV = 2., .minV = 2., .fric = 5. };
 NSString * _Nonnull PrmLabels[] = {
 	@"Avoidance", @"Cohision", @"Alignment",
 	@"Sight Distance", @"Sight Angle",
 	@"Mass", @"Max Speed", @"Min Speed", @"Friction" };
-Agent *Pop = NULL;
+Agent *PopSim, *PopDraw;
 simd_float3 *Forces;
 Cell *Cells;
 Task *TaskQueue, *TasQWork;
 uint32_t *Idxs;
+NSInteger nCores = 0;
+dispatch_group_t DispatchGrp;
+dispatch_queue_t DispatchQue;
 static int32_t *TmpCellMem = NULL;
-static NSInteger nCores = 0;
-static dispatch_group_t DispatchGrp;
-static dispatch_queue_t DispatchQue;
 static uint32_t *CelIdxs = NULL;
-#define MAX_CELL_IDX (simd_int3){N_CELLS_X-1,N_CELLS_Y-1,N_CELLS_Z-1}
 
 unsigned long current_time_us(void) {
 	static long startTime = -1;
@@ -48,19 +47,21 @@ unsigned long current_time_us(void) {
 	return (tv.tv_sec - startTime) * 1000000L + tv.tv_usec;
 }
 static void check_wall(NSInteger aIdx, NSInteger elm, float p, float nd, float avd) {
-	float d = fabsf(Pop[aIdx].p[elm] - p);
+	float d = fabsf(PopSim[aIdx].p[elm] - p);
 	if (d > nd) return;
 	float f = avd / d / d;
 	Forces[aIdx][elm] += (p <= 0.)? f : - f;
 }
 void pop_reset(void) {
 	for (NSInteger i = 0; i < PopSize; i ++) {
-		Agent *a = &Pop[i];
+		Agent *a = &PopSim[i];
 		a->p = (simd_float3){drand48(), drand48(), drand48()} * (WS - NEAR_DIST) + NEAR_DIST/2.;
 		float th = drand48() * M_PI*2, phi = (drand48() - .5) * M_PI/3;
 		a->v = (simd_float3){cosf(th)*cosf(phi), sinf(phi), sinf(th)*cosf(phi)} * .01;
 	}
 	Step = 0;
+	memcpy(PopDraw, PopSim, sizeof(Agent) * PopSize);
+	[statistics reset];
 }
 BOOL check_cell_unit(NSInteger popSize) {
 	CellSize = pow(popSize / STD_POPSIZE, 1./3.) * STD_CELSIZE;
@@ -103,39 +104,41 @@ void set_sim_params(void) {
 		prmsSim[i] = std[i] * pow(base[i], prmsUI[i]);
 	PrmsSim.sightDist *= NEAR_DIST;
 }
-static BOOL merge_sort(Task *src, Task *work, NSInteger n) {
+static BOOL merge_sort(void *srcData, void *workData, NSInteger n,
+	NSInteger eSz, int (^compare)(const void *, const void *)) {
 	if (n <= (PopSize + nCores - 1) / nCores) {
-		qsort_b(src, n, sizeof(Task), ^(const void *a, const void *b){
-			uint32_t p = ((Task *)a)->nc, q = ((Task *)b)->nc;
-			return (p > q)? -1 : (p < q)? 1 : 0;
-		});
+		qsort_b(srcData, n, eSz, compare);
 		return NO;
 	} else {
 		BOOL m1, m2, *mp1 = &m1;
 		dispatch_group_t grp = dispatch_group_create();
 		dispatch_queue_t que = dispatch_queue_create(NULL, DISPATCH_QUEUE_SERIAL);
-		dispatch_group_async(grp, que, ^{ *mp1 = merge_sort(src, work, n/2); });
-		m2 = merge_sort(src+n/2, work+n/2, n-n/2);
+		dispatch_group_async(grp, que, ^{
+			*mp1 = merge_sort(srcData, workData, n/2, eSz, compare); });
+		m2 = merge_sort(((char *)srcData) + eSz * n/2,
+			((char *)workData) + eSz * n/2, n-n/2, eSz, compare);
 		dispatch_group_wait(grp, DISPATCH_TIME_FOREVER);
-		Task *tmp, *result;
-		if (m1) { tmp = src; result = work; }
-		else { tmp = work; result = src; }
-		if (m1 != m2) memcpy(result+n/2, tmp+n/2, sizeof(Task)*(n-n/2));
+		char *tmp, *result;
+		if (m1) { tmp = srcData; result = workData; }
+		else { tmp = workData; result = srcData; }
+		if (m1 != m2) memcpy(result+eSz*n/2, tmp+eSz*n/2, eSz*(n-n/2));
 		dispatch_group_async(grp, que, ^{ 
 			NSInteger j = 0, k = n / 2;
 			for (NSInteger i = 0; i < n / 2; i ++) {
-				if (j >= n / 2) tmp[i] = result[k ++];
-				else if (k >= n) tmp[i] = result[j ++];
-				else if (result[j].nc >= result[k].nc) tmp[i] = result[j ++];
-				else tmp[i] = result[k ++];
+				if (j >= n / 2) memcpy(tmp + eSz * i, result + eSz * (k ++), eSz);
+				else if (k >= n) memcpy(tmp + eSz * i, result + eSz * (j ++), eSz);
+				else if (compare(result + eSz * j, result + eSz * k) <= 0)
+					memcpy(tmp + eSz * i, result + eSz * (j ++), eSz);
+				else memcpy(tmp + eSz * i, result + eSz * (k ++), eSz);
 			}
 		});
 		NSInteger j = n / 2 - 1, k = n - 1;
 		for (NSInteger i = n - 1; i >= n / 2; i --) {
-			if (j < 0) tmp[i] = result[k --];
-			else if (k < n / 2) tmp[i] = result[j --];
-			else if (result[j].nc < result[k].nc) tmp[i] = result[j --];
-			else tmp[i] = result[k --];
+			if (j < 0) memcpy(tmp + eSz * i, result + eSz * (k --), eSz);
+			else if (k < n / 2) memcpy(tmp + eSz * i, result + eSz * (j --), eSz);
+			else if (compare(result + eSz * j, result + eSz * k) > 0)
+				memcpy(tmp + eSz * i, result + eSz * (j --), eSz);
+			else memcpy(tmp + eSz * i, result + eSz * (k --), eSz);
 		}
 		dispatch_group_wait(grp, DISPATCH_TIME_FOREVER);
 		return !m1;
@@ -149,7 +152,7 @@ void pop_step1(void) {
 	void (^block)(NSInteger, NSInteger) = ^(NSInteger from, NSInteger to) {
 		int32_t *ccn = cn + N_CELLS * from / nAg;
 		for (NSInteger i = from; i < to; i ++) {
-			simd_int3 v = simd_int(Pop[i].p / CellSize);
+			simd_int3 v = simd_int(PopSim[i].p / CellSize);
 			CelIdxs[i] = (v.x * N_CELLS_Y + v.y) * N_CELLS_Z + v.z;
 			ccn[CelIdxs[i]] ++;
 		}
@@ -203,7 +206,7 @@ void pop_step2(void) {
 BOOL pop_step3(void) {
 	NSInteger nAg = PopSize / nCores;
 	void (^blockTQ)(NSInteger) = ^(NSInteger aIdx) {
-		simd_float3 p = Pop[aIdx].p / CellSize, rp = simd_fract(p);
+		simd_float3 p = PopSim[aIdx].p / CellSize, rp = simd_fract(p);
 		simd_int3 idxV = simd_int(p);
 		float rLow = PrmsSim.sightDist / CellSize, rUp = 1. - rLow;
 		simd_int3 from = idxV, to = idxV, upLm = MAX_CELL_IDX;
@@ -226,6 +229,11 @@ BOOL pop_step3(void) {
 			for (NSInteger j = 0; j < nAg; j ++) blockTQ(i * nAg + j); });
 	}
 	for (NSInteger j = (nCores-1)*nAg; j < PopSize; j ++) blockTQ(j);
+	[statistics step];
 	dispatch_group_wait(DispatchGrp, DISPATCH_TIME_FOREVER);
-	return merge_sort(TaskQueue, TasQWork, PopSize);
+	return merge_sort(TaskQueue, TasQWork, PopSize, sizeof(Task),
+		^(const void *a, const void *b){
+			uint32_t p = ((Task *)a)->nc, q = ((Task *)b)->nc;
+			return (p > q)? -1 : (p < q)? 1 : 0;
+		});
 }

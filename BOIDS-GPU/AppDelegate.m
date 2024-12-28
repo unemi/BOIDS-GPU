@@ -60,6 +60,10 @@ void error_msg(NSString *msg, short err) {
 	if (_pnlCntl == nil) _pnlCntl = [PanelController.alloc initWithWindow:nil];
 	[_pnlCntl showWindow:nil];
 }
+- (IBAction)openStatistics:(id)sender {
+	if (statistics == nil) statistics = [Statistics.alloc initWithWindow:nil];
+	[statistics showWindow:nil];
+}
 @end
 
 static NSString *keyPopSize = @"PopSize", *acNmPopSize = @"Population Size";

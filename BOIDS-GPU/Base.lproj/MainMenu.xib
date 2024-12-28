@@ -221,6 +221,12 @@
                                     <action selector="openPanel:" target="Voe-Tx-rLC" id="Itq-rb-cUq"/>
                                 </connections>
                             </menuItem>
+                            <menuItem title="Statistics ..." keyEquivalent="s" id="neP-p1-s5j">
+                                <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
+                                <connections>
+                                    <action selector="openStatistics:" target="Voe-Tx-rLC" id="PnQ-lD-uZZ"/>
+                                </connections>
+                            </menuItem>
                             <menuItem title="Bring All to Front" id="LE2-aR-0XJ">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
@@ -266,8 +272,8 @@
                     <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="tJd-1n-WBE"/>
                     <toolbarItem implicitItemIdentifier="A6D26131-91B3-4D2D-835B-A8689D471F63" label="FPS" paletteLabel="FPS" sizingBehavior="auto" id="omD-Mt-R6N">
                         <nil key="toolTip"/>
-                        <textField key="view" horizontalHuggingPriority="251" verticalHuggingPriority="750" id="usP-WR-IhM">
-                            <rect key="frame" x="0.0" y="14" width="44" height="16"/>
+                        <textField key="view" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" id="usP-WR-IhM">
+                            <rect key="frame" x="0.0" y="14" width="33" height="13"/>
                             <autoresizingMask key="autoresizingMask"/>
                             <textFieldCell key="cell" lineBreakMode="clipping" title="----" id="eq6-Jv-ebL">
                                 <numberFormatter key="formatter" formatterBehavior="custom10_4" usesGroupingSeparator="NO" formatWidth="-1" groupingSize="0" minimumIntegerDigits="1" maximumIntegerDigits="2" minimumFractionDigits="2" maximumFractionDigits="2" id="xKn-Xt-alz"/>

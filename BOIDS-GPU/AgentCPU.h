@@ -14,6 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 #define N_CELLS_Y (CellUnit*9)
 #define N_CELLS_Z (CellUnit*12)
 #define N_CELLS (N_CELLS_X*N_CELLS_Y*N_CELLS_Z)
+#define MAX_CELL_IDX (simd_int3){N_CELLS_X-1,N_CELLS_Y-1,N_CELLS_Z-1}
 
 typedef struct { simd_float3 p, v; } Agent;
 typedef struct { uint32_t start, n; } Cell;
@@ -31,11 +32,14 @@ extern float CellSize;
 extern simd_float3 WS;
 extern Params PrmsUI, PrmsSim;
 extern NSString * _Nonnull PrmLabels[];
-extern Agent *Pop;
+extern Agent *PopSim, *PopDraw;
 extern simd_float3 *Forces;
 extern Cell *Cells;
 extern Task *TaskQueue, *TasQWork;
 extern uint32_t *Idxs;
+extern NSInteger nCores;
+extern dispatch_group_t DispatchGrp;
+extern dispatch_queue_t DispatchQue;
 extern unsigned long current_time_us(void);
 extern void pop_reset(void);
 extern BOOL check_cell_unit(NSInteger popSize);

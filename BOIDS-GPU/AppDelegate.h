@@ -6,6 +6,7 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import "Statistics.h"
 
 typedef struct { CGFloat red, green, blue; } MyRGB;
 
@@ -20,5 +21,6 @@ typedef struct { CGFloat red, green, blue; } MyRGB;
 @end
 
 extern NSString *FullScreenName;
+extern void in_main_thread(void (^block)(void));
 extern void err_msg(NSObject *object, BOOL fatal);
 extern void load_defaults(void);

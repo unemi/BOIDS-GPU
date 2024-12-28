@@ -15,6 +15,7 @@
 		23F17A3E2D06714D00FE28DA /* Exceptions for "BOIDS-GPU" folder in "BOIDS-GPU" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				README.md,
 				ShaderHeader.metal,
 			);
 			target = 23B13BF02D01DA1600D4181F /* BOIDS-GPU */;

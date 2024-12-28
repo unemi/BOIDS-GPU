@@ -12,7 +12,7 @@ NS_ASSUME_NONNULL_BEGIN
 extern id<MTLComputePipelineState> movePSO, shapePSO;
 extern id<MTLRenderPipelineState> bgPSO, drawPSO;
 extern id<MTLCommandQueue> commandQueue;
-extern id<MTLBuffer> popBuf, forceBuf, cellBuf, idxsBuf, vxBuf;
+extern id<MTLBuffer> popSimBuf, popDrawBuf, forceBuf, cellBuf, idxsBuf, vxBuf;
 extern id<MTLBuffer> _Nonnull taskBf[2];	// for double buffering
 extern NSInteger taskBfIdx, NewPopSize;
 

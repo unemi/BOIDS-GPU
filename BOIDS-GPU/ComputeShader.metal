@@ -6,6 +6,7 @@
 //
 
 #include "ShaderHeader.metal"
+#define MaxElev (M_PI_4_F/2.)
 
 kernel void moveAgent(device Agent *pop, constant float3 *forces,
 	constant Cell *cells, constant uint *idxs, constant Task *tasks,
@@ -42,9 +43,9 @@ kernel void moveAgent(device Agent *pop, constant float3 *forces,
 	a.v *= 1. - params->fric;
 	float v = length(a.v);
 	float tilt = atan2(a.v.z, length(a.v.xy));
-	if (abs(tilt) > M_PI_4_F) {
-		a.v.z = v / ((tilt > 0.)? M_SQRT2_F : -M_SQRT2_F);
-		a.v.xy *= M_SQRT1_2_F / cos(tilt);
+	if (abs(tilt) > MaxElev) {
+		a.v.z = v * ((tilt > 0.)? sin(MaxElev) : -sin(MaxElev));
+		a.v.xy *= cos(MaxElev) / cos(tilt);
 	}	
 	if (v > params->maxV) a.v *= params->maxV / v;
 	else if (v < params->minV) a.v *= params->minV / v;

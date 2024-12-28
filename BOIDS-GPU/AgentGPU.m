@@ -12,7 +12,7 @@
 id<MTLComputePipelineState> movePSO, shapePSO;
 id<MTLRenderPipelineState> bgPSO, drawPSO;
 id<MTLCommandQueue> commandQueue;
-id<MTLBuffer> popBuf, forceBuf, cellBuf, idxsBuf, vxBuf;
+id<MTLBuffer> popSimBuf, popDrawBuf, forceBuf, cellBuf, idxsBuf, vxBuf;
 id<MTLBuffer> taskBf[2];	// for double buffering
 NSInteger taskBfIdx, NewPopSize;
 
@@ -20,7 +20,9 @@ void alloc_pop_mem(id<MTLDevice> device) {
 	for (NSInteger i = 0; i < 2; i ++)
 		taskBf[i] = [device newBufferWithLength:sizeof(Task) * NewPopSize
 			options:MTLResourceStorageModeShared];
-	popBuf = [device newBufferWithLength:sizeof(Agent) * NewPopSize
+	popSimBuf = [device newBufferWithLength:sizeof(Agent) * NewPopSize
+		options:MTLResourceStorageModeShared];
+	popDrawBuf = [device newBufferWithLength:sizeof(Agent) * NewPopSize
 		options:MTLResourceStorageModeShared];
 	forceBuf = [device newBufferWithLength:sizeof(simd_float3) * NewPopSize
 		options:MTLResourceStorageModeShared];
@@ -30,7 +32,8 @@ void alloc_pop_mem(id<MTLDevice> device) {
 		options:MTLResourceStorageModePrivate];
 	TaskQueue = taskBf[0].contents;
 	TasQWork = taskBf[1].contents;
-	Pop = popBuf.contents;
+	PopSim = popSimBuf.contents;
+	PopDraw = popDrawBuf.contents;
 	Forces = forceBuf.contents;
 	Idxs = idxsBuf.contents;
 	if (pop_mem_init(NewPopSize))
@@ -64,7 +67,7 @@ void pop_step4(float deltaTime) {
 	id<MTLComputeCommandEncoder> cce = cmdBuf.computeCommandEncoder;
 	[cce setComputePipelineState:movePSO];
 	NSInteger idx = 0;
-	[cce setBuffer:popBuf offset:0 atIndex:idx ++];
+	[cce setBuffer:popSimBuf offset:0 atIndex:idx ++];
 	[cce setBuffer:forceBuf offset:0 atIndex:idx ++];
 	[cce setBuffer:cellBuf offset:0 atIndex:idx ++];
 	[cce setBuffer:idxsBuf offset:0 atIndex:idx ++];
