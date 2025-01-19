@@ -9,10 +9,9 @@
 #import "AgentCPU.h"
 #import "AppDelegate.h"
 
-id<MTLComputePipelineState> movePSO, shapePSO;
-id<MTLRenderPipelineState> bgPSO, drawPSO;
+static id<MTLComputePipelineState> movePSO;
 id<MTLCommandQueue> commandQueue;
-id<MTLBuffer> popSimBuf, popDrawBuf, forceBuf, cellBuf, idxsBuf, vxBuf;
+id<MTLBuffer> popSimBuf, popDrawBuf, forceBuf, cellBuf, idxsBuf;
 id<MTLBuffer> taskBf[2];	// for double buffering
 NSInteger taskBfIdx, NewPopSize;
 
@@ -26,10 +25,8 @@ void alloc_pop_mem(id<MTLDevice> device) {
 		options:MTLResourceStorageModeShared];
 	forceBuf = [device newBufferWithLength:sizeof(simd_float3) * NewPopSize
 		options:MTLResourceStorageModeShared];
-	idxsBuf = [device newBufferWithLength:sizeof(uint32_t) * NewPopSize
+	idxsBuf = [device newBufferWithLength:sizeof(UInt32) * NewPopSize
 		options:MTLResourceStorageModeShared];
-	vxBuf = [device newBufferWithLength:sizeof(simd_float2) * NewPopSize * 6
-		options:MTLResourceStorageModePrivate];
 	TaskQueue = taskBf[0].contents;
 	TasQWork = taskBf[1].contents;
 	PopSim = popSimBuf.contents;
@@ -42,13 +39,15 @@ void alloc_pop_mem(id<MTLDevice> device) {
 	pop_reset();
 }
 void alloc_cell_mem(id<MTLDevice> device) {
-	cellBuf = [device newBufferWithLength:
-		sizeof(Cell) * N_CELLS_X*N_CELLS_Y*N_CELLS_Z
+	cellBuf = [device newBufferWithLength:sizeof(Cell) * N_CELLS
 		options:MTLResourceStorageModeShared];
 	Cells = cellBuf.contents;
 }
-id<MTLDevice> setup_GPU(void) {
-	id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+id<MTLDevice> setup_GPU(MTKView *view) {
+	NSArray<id<MTLDevice>> *devs = MTLCopyAllDevices();
+	if (devs == nil || devs.count == 0)
+		err_msg(@"No GPU found.", YES);
+	id<MTLDevice> device = view? view.preferredDevice : devs[0];
 	@try {
 		NSError *error;
 		id<MTLLibrary> dfltLib = device.newDefaultLibrary;
@@ -61,7 +60,7 @@ id<MTLDevice> setup_GPU(void) {
 	} @catch (NSObject *obj) { err_msg(obj, YES); }
 	return device;
 }
-void pop_step4(float deltaTime) {
+void pop_step4(float deltaTime) {	// millisecond
 	id<MTLCommandBuffer> cmdBuf = commandQueue.commandBuffer;
 	cmdBuf.label = @"MyCommand";
 	id<MTLComputeCommandEncoder> cce = cmdBuf.computeCommandEncoder;

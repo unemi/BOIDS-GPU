@@ -15,7 +15,6 @@
 		23F17A3E2D06714D00FE28DA /* Exceptions for "BOIDS-GPU" folder in "BOIDS-GPU" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				README.md,
 				ShaderHeader.metal,
 			);
 			target = 23B13BF02D01DA1600D4181F /* BOIDS-GPU */;
@@ -264,7 +263,7 @@
 				CODE_SIGN_ENTITLEMENTS = "BOIDS-GPU/BOIDS_GPU.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMainNibFile = MainMenu;
@@ -290,7 +289,7 @@
 				CODE_SIGN_ENTITLEMENTS = "BOIDS-GPU/BOIDS_GPU.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";

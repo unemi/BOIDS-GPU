@@ -10,7 +10,7 @@
 #import "AgentGPU.h"
 #import "AppDelegate.h"
 #define LOG_STEPS 200
-#define MEASURE_TIME
+//#define MEASURE_TIME
 #ifdef MEASURE_TIME
 #import <sys/sysctl.h>
 #define REC_TIME(v) unsigned long v = current_time_us();
@@ -19,20 +19,24 @@
 #endif
 
 CGFloat FPS = 10.;
-simd_float3 WallRGB = {0,0,0}, BirdRGB = {1,1,1};
-ViewParams ViewPrms = {.depth = 0., .scale = 0., .contrast = 0.};
-NSString * _Nonnull ViewPrmLbls[] = { @"Depth", @"Scale", @"Contrast" };
+simd_float3 WallRGB = {0,0,0}, AgntRGB = {1,1,1};
+ViewParams ViewPrms = {
+	.depth = 0., .scale = 0., .contrast = 0.,
+	.agentSize = 0., .agentOpacity = 1.};
+ShapeType shapeType = ShapePaperPlane;
+NSString * _Nonnull ViewPrmLbls[] = {
+	@"Depth", @"Scale", @"Contrast", @"AgentSize", @"AgentOpacity" };
 typedef id<MTLComputeCommandEncoder> CCE;
 typedef id<MTLRenderCommandEncoder> RCE;
 
-@interface MetalView () {
-	IBOutlet NSMenu *menu;
-}
-@end
-
 @implementation MetalView {
+	IBOutlet NSMenu *menu;
 	IBOutlet NSToolbarItem *playItem, *fullScrItem;
 	IBOutlet NSTextField *fpsDgt;
+	id<MTLComputePipelineState> shapePSO, squarePSO;
+	id<MTLRenderPipelineState> bgPSO, drawPSO, blobPSO;
+	id<MTLBuffer> vxBuf, idxBuf;
+	NSInteger vxBufSize, idxBufSize;
 	NSRect viewportRect;
 	NSLock *drawLock;
 	NSTimer *fpsTimer;
@@ -65,14 +69,30 @@ typedef id<MTLRenderCommandEncoder> RCE;
 	change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
 	[self switchFpsTimer:[change[NSKeyValueChangeNewKey] boolValue] && !_view.paused];
 }
+static id<MTLComputePipelineState> make_comp_func(id<MTLDevice> device,
+	id<MTLLibrary> dfltLib, NSString *name) {
+	NSError *error;
+	id<MTLComputePipelineState> pso = [device newComputePipelineStateWithFunction:
+		[dfltLib newFunctionWithName:name] error:&error];
+	if (pso == nil) @throw error;
+	return pso;
+}
+static id<MTLRenderPipelineState> make_render_func(id<MTLDevice> device,
+	id<MTLLibrary> dfltLib, MTLRenderPipelineDescriptor *pplnStDesc, NSString *name) {
+	NSError *error;
+	pplnStDesc.vertexFunction = [dfltLib newFunctionWithName:name];
+	id<MTLRenderPipelineState> pso =
+		[device newRenderPipelineStateWithDescriptor:pplnStDesc error:&error];
+	if (pso == nil) @throw error;
+	return pso;
+}
 - (void)awakeFromNib {
 	[(toolbar = _view.window.toolbar) addObserver:self forKeyPath:@"visible"
 		options:NSKeyValueObservingOptionNew context:NULL];
 	[self getScreenRefreshTime];
 	@try {
 		load_defaults();
-		NSError *error;
-		id<MTLDevice> device = _view.device = setup_GPU();
+		id<MTLDevice> device = _view.device = setup_GPU(_view);
 		NSUInteger smplCnt = 1;
 		while ([device supportsTextureSampleCount:smplCnt << 1]) smplCnt <<= 1;
 		_view.sampleCount = smplCnt;
@@ -80,21 +100,22 @@ typedef id<MTLRenderCommandEncoder> RCE;
 		_view.menu = menu;
 		_view.delegate = self;
 		id<MTLLibrary> dfltLib = device.newDefaultLibrary;
-		shapePSO = [device newComputePipelineStateWithFunction:
-			[dfltLib newFunctionWithName:@"makeSpape"] error:&error];
-		if (shapePSO == nil) @throw error;
+		shapePSO = make_comp_func(device, dfltLib, @"makeShape");
+		squarePSO = make_comp_func(device, dfltLib, @"makeSquare");
 		MTLRenderPipelineDescriptor *pplnStDesc = MTLRenderPipelineDescriptor.new;
 		pplnStDesc.label = @"Simple Pipeline";
 		pplnStDesc.rasterSampleCount = _view.sampleCount;
 		MTLRenderPipelineColorAttachmentDescriptor *colAttDesc = pplnStDesc.colorAttachments[0];
 		colAttDesc.pixelFormat = _view.colorPixelFormat;
-		pplnStDesc.vertexFunction = [dfltLib newFunctionWithName:@"vertexShaderBG"];
+		colAttDesc.blendingEnabled = YES;
+		colAttDesc.rgbBlendOperation = MTLBlendOperationAdd;
+		colAttDesc.sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+		colAttDesc.destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
 		pplnStDesc.fragmentFunction = [dfltLib newFunctionWithName:@"fragmentShader"];
-		bgPSO = [device newRenderPipelineStateWithDescriptor:pplnStDesc error:&error];
-		if (bgPSO == nil) @throw error;
-		pplnStDesc.vertexFunction = [dfltLib newFunctionWithName:@"vertexShader"];
-		drawPSO = [device newRenderPipelineStateWithDescriptor:pplnStDesc error:&error];
-		if (drawPSO == nil) @throw error;
+		bgPSO = make_render_func(device, dfltLib, pplnStDesc, @"vertexShaderBG");
+		drawPSO = make_render_func(device, dfltLib, pplnStDesc, @"vertexShader");
+		pplnStDesc.fragmentFunction = [dfltLib newFunctionWithName:@"fragmentBlob"];
+		blobPSO = make_render_func(device, dfltLib, pplnStDesc, @"vertexBlob");
 		drawLock = NSLock.new;
 		alloc_pop_mem(_view.device);
 		_view.paused = YES;
@@ -137,23 +158,24 @@ typedef id<MTLRenderCommandEncoder> RCE;
 				size_t len = sizeof(name);
 				sysctlbyname("hw.model", name, &len, NULL, 0);
 			}
-			NSString *str = NSProcessInfo.processInfo.operatingSystemVersionString;
-			printf("\"%s\",\"%s\",%ld,%d\n", name, str.UTF8String, PopSize, N_CELLS);
+			printf("\"%s\",\"%s\",\"%s\",%ld,%ld,%d\n", name,
+				NSProcessInfo.processInfo.operatingSystemVersionString.UTF8String,
+				_view.device.name.UTF8String, nCores, PopSize, N_CELLS);
 		} else if (Step % LOG_STEPS == 0)
 			printf("%ld,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
 				Step, TM1, TM2, TM3, TM4, TMG, TMI);
 #endif
 		REC_TIME(tm1)
 		pop_step1();
-		REC_TIME(tm2);
+		REC_TIME(tm2)
 		pop_step2();
-		REC_TIME(tm3);
+		REC_TIME(tm3)
 		if (pop_step3()) {
 			taskBfIdx = 1 - taskBfIdx;
 			TaskQueue = taskBf[taskBfIdx].contents;
 			TasQWork = taskBf[1 - taskBfIdx].contents;
 		}
-		REC_TIME(tm4);
+		REC_TIME(tm4)
 		pop_step4(deltaTime);
 		[drawLock lock];
 		memcpy(PopDraw, PopSim, sizeof(Agent) * PopSize);
@@ -175,13 +197,34 @@ typedef id<MTLRenderCommandEncoder> RCE;
 	BOOL animated = !view.paused;
 	id<MTLCommandBuffer> cmdBuf = commandQueue.commandBuffer;
 	CCE cce = cmdBuf.computeCommandEncoder;
-	[cce setComputePipelineState:shapePSO];
+	NSArray<id<MTLComputePipelineState>> *psos = @[shapePSO, squarePSO];
+	NSInteger vxSzs[] = {6, 4}, idxSzs[] = {0, 5};
+	NSInteger vxSz = PopSize * vxSzs[shapeType], idxSz = PopSize * idxSzs[shapeType];
+	if (vxBufSize != vxSz) {
+		vxBuf = [view.device newBufferWithLength:sizeof(simd_float2) * vxSz
+			options:MTLResourceStorageModePrivate];
+		vxBufSize = vxSz;
+	}
+	if (idxBufSize != idxSz) {
+		if (idxSz == 0) idxBuf = nil;
+		else idxBuf = [view.device newBufferWithLength:sizeof(uint32) * idxSz
+			options:MTLResourceStorageModeShared];
+		idxBufSize = idxSz;
+		if (shapeType == ShapeBlob) {
+			uint32 *idxP = idxBuf.contents;
+			for (uint32 i = 0; i < PopSize; i ++) {
+				for (uint32 j = 0; j < 4; j ++) idxP[i * 5 + j] = i * 4 + j;
+				idxP[i * 5 + 4] = (uint32)(-1);
+	}}}
+	[cce setComputePipelineState:psos[shapeType]];
 	NSInteger idx = 0;
 	REC_TIME(tm1);
 	simd_float2 camP = {WS.z * pow(10., ViewPrms.depth), pow(10., ViewPrms.scale)};
+	float agntSz = pow(5., ViewPrms.agentSize);
 	[cce setBuffer:popDrawBuf offset:0 atIndex:idx ++];
 	[cce setBytes:&WS length:sizeof(WS) atIndex:idx ++];
 	[cce setBytes:&camP length:sizeof(camP) atIndex:idx ++];
+	[cce setBytes:&agntSz length:sizeof(agntSz) atIndex:idx ++];
 	[cce setBuffer:vxBuf offset:0 atIndex:idx ++];
 	NSUInteger threadGrpSz = shapePSO.maxTotalThreadsPerThreadgroup;
 	if (threadGrpSz > PopSize) threadGrpSz = PopSize;
@@ -210,24 +253,37 @@ typedef id<MTLRenderCommandEncoder> RCE;
 	[rce setVertexBytes:&WS length:sizeof(WS) atIndex:idx ++];
 	[rce setVertexBytes:&camP length:sizeof(camP) atIndex:idx ++];
 	for (NSInteger i = 0; i < 5; i ++) {
-		simd_float3 corners[4], col;
+		simd_float3 corners[4];
+		simd_float4 col = {0,0,0,1};
 		for (NSInteger j = 0; j < 4; j ++) {
 			uint16 k = cornersIdx[i][j];
 			corners[j] = WS * (simd_float3){k % 2, (k / 2) % 2, k / 4};
 		}
-		col = WallRGB + ((ViewPrms.contrast > 0.)?
-				surfaceDim[i] * ViewPrms.contrast :
-				(1. - surfaceDim[i]) * - ViewPrms.contrast) * (1. - WallRGB);
+		col.rgb = WallRGB + ((ViewPrms.contrast > 0.)?
+			surfaceDim[i] * ViewPrms.contrast :
+			(1. - surfaceDim[i]) * - ViewPrms.contrast) * (1. - WallRGB);
 		[rce setVertexBytes:corners length:sizeof(corners) atIndex:idx];
 		[rce setFragmentBytes:&col length:sizeof(col) atIndex:0];
 		[rce drawPrimitives:MTLPrimitiveTypeTriangleStrip
 			vertexStart:0 vertexCount:4];
 	}
-	[rce setRenderPipelineState:drawPSO];
 	[rce setVertexBuffer:vxBuf offset:0 atIndex:0];
-	[rce setFragmentBytes:&BirdRGB length:sizeof(BirdRGB) atIndex:0];
-	[rce drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0
-		vertexCount:PopSize * 6];
+	simd_float4 agntCol = simd_make_float4(AgntRGB, ViewPrms.agentOpacity);
+	[rce setFragmentBytes:&agntCol length:sizeof(agntCol) atIndex:0];
+	switch (shapeType) {
+		case ShapePaperPlane:
+		[rce setRenderPipelineState:drawPSO];
+		[rce drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0
+			vertexCount:vxBufSize];
+		break;
+		case ShapeBlob:
+		[rce setRenderPipelineState:blobPSO];
+		simd_float2 scrSize = {viewportRect.size.width, viewportRect.size.height};
+		[rce setFragmentBytes:&scrSize length:sizeof(scrSize) atIndex:1];
+		[rce drawIndexedPrimitives:MTLPrimitiveTypeTriangleStrip
+			indexCount:idxBufSize indexType:MTLIndexTypeUInt32
+			indexBuffer:idxBuf indexBufferOffset:0];
+	}
 	[rce endEncoding];
 	[cmdBuf presentDrawable:view.currentDrawable];
 	[cmdBuf commit];
@@ -327,9 +383,13 @@ typedef id<MTLRenderCommandEncoder> RCE;
 - (void)scrollWheel:(NSEvent *)event {
 	CGFloat delta = (event.modifierFlags & NSEventModifierFlagShift)?
 		event.deltaX * .05 : event.deltaY * .005;
-	if (event.modifierFlags & NSEventModifierFlagCommand)
+	if (event.modifierFlags & NSEventModifierFlagCommand) {
+		ViewPrms.depth =  fmax(-1., fmin(1., ViewPrms.depth + delta));
+		[((AppDelegate *)NSApp.delegate).pnlCntl camDepthModified];
+	} else {
 		ViewPrms.scale = fmax(-1., fmin(1., ViewPrms.scale - delta));
-	else ViewPrms.depth =  fmax(-1., fmin(1., ViewPrms.depth + delta));
+		[((AppDelegate *)NSApp.delegate).pnlCntl camScaleModified];
+	}
 	self.needsDisplay = YES;
 }
 - (void)keyDown:(NSEvent *)event {

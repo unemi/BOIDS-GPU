@@ -17,8 +17,8 @@ NS_ASSUME_NONNULL_BEGIN
 #define MAX_CELL_IDX (simd_int3){N_CELLS_X-1,N_CELLS_Y-1,N_CELLS_Z-1}
 
 typedef struct { simd_float3 p, v; } Agent;
-typedef struct { uint32_t start, n; } Cell;
-typedef struct { uint32_t idx, nc, n, cIdxs[8]; } Task;
+typedef struct { UInt32 start, n; } Cell;
+typedef struct { UInt32 idx, nc, n, cIdxs[8]; } Task;
 typedef struct {
 	float avoid, cohide, align, sightDist, sightAngle,
 		mass, maxV, minV, fric;
@@ -36,7 +36,7 @@ extern Agent *PopSim, *PopDraw;
 extern simd_float3 *Forces;
 extern Cell *Cells;
 extern Task *TaskQueue, *TasQWork;
-extern uint32_t *Idxs;
+extern UInt32 *Idxs;
 extern NSInteger nCores;
 extern dispatch_group_t DispatchGrp;
 extern dispatch_queue_t DispatchQue;

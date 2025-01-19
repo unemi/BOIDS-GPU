@@ -38,7 +38,10 @@ static void show_alert(NSObject *object, short err, BOOL fatal) {
 void err_msg(NSObject *object, BOOL fatal) {
 	show_alert(object, 0, fatal);
 }
-void error_msg(NSString *msg, short err) {
+void unix_error_msg(NSString *msg, BOOL fatal) {
+	show_alert([NSString stringWithFormat:@"%@: %s.", msg, strerror(errno)], errno, fatal);
+}
+static void error_msg(NSString *msg, short err) {
 	show_alert(msg, err, NO);
 }
 
@@ -60,6 +63,10 @@ void error_msg(NSString *msg, short err) {
 	if (_pnlCntl == nil) _pnlCntl = [PanelController.alloc initWithWindow:nil];
 	[_pnlCntl showWindow:nil];
 }
+//- (IBAction)openCommPanel:(id)sender {
+//	if (_pnlComm == nil) _pnlComm = [CommPanel.alloc initWithWindow:nil];
+//	[_pnlComm showWindow:nil];
+//}
 - (IBAction)openStatistics:(id)sender {
 	if (statistics == nil) statistics = [Statistics.alloc initWithWindow:nil];
 	[statistics showWindow:nil];
@@ -68,11 +75,11 @@ void error_msg(NSString *msg, short err) {
 
 static NSString *keyPopSize = @"PopSize", *acNmPopSize = @"Population Size";
 static NSInteger PopSizeDefault;
-enum { ColorBg, ColorBird, NColors };
+enum { ColorBg, ColorAgnt, NColors };
 static MyRGB ColorDefault[NColors] = {{0,0,0}, {1,1,1}};
 static MyRGB Colors[NColors];
-static NSString *ColorNames[NColors] = {@"Background", @"BirdColor"};
-static NSString *keyFullScreenName = @"FullScreenName";
+static NSString *ColorNames[NColors] = {@"Background", @"AgentColor"};
+static NSString *keyShapeType = @"ShapeType", *keyFullScreenName = @"FullScreenName";
 NSString *FullScreenName = nil;
 
 @implementation PanelController {
@@ -82,10 +89,10 @@ NSString *FullScreenName = nil;
 		*sightDSld, *sightASld, *masSld, *mxsSld, *mnsSld, *frcSld;
 	IBOutlet NSTextField *avdDgt, *cohDgt, *aliDgt,
 		*sightDDgt, *sightADgt, *masDgt, *mxsDgt, *mnsDgt, *frcDgt;
-	IBOutlet NSTextField *depthDgt, *scaleDgt, *cntrstDgt;
-	IBOutlet NSSlider *depthSld, *scaleSld, *cntrstSld;
+	IBOutlet NSTextField *depthDgt, *scaleDgt, *cntrstDgt, *agntSizeDgt, *agntOpacityDgt;
+	IBOutlet NSSlider *depthSld, *scaleSld, *cntrstSld, *agntSizeSld, *agntOpacitySld;
 	IBOutlet NSColorWell *bgColWel, *bdColWel;
-	IBOutlet NSPopUpButton *fullScrPopUp;
+	IBOutlet NSPopUpButton *shapePopUp, *fullScrPopUp;
 	IBOutlet NSButton *revertBtn, *saveBtn, *resetBtn;
 	NSArray<NSTextField *> *digits;
 	NSArray<NSSlider *> *sliders;
@@ -107,7 +114,7 @@ static NSString *label_from_tag(NSInteger tag) {
 }
 static CGFloat default_value(NSInteger idx) {
 	NSNumber *num = [NSUserDefaults.standardUserDefaults objectForKey:label_from_tag(idx)];
-	return num? num.doubleValue : 0.;
+	return num? num.doubleValue : (idx != AGENT_OPACITY_IDX)? 0. : 1.;
 }
 static CGFloat get_param_value(NSInteger idx) {
 	return (idx < N_PARAMS)?
@@ -118,6 +125,10 @@ static void set_param_value(NSInteger idx, CGFloat value) {
 		((float *)(&PrmsUI))[idx] = value;
 		set_sim_params();
 	} else ((float *)(&ViewPrms))[idx - N_PARAMS] = value;
+}
+static ShapeType default_shapeType(void) {
+	NSNumber *num = [NSUserDefaults.standardUserDefaults objectForKey:keyShapeType];
+	return (num == nil)? ShapePaperPlane : (ShapeType)num.intValue;
 }
 static MyRGB myRGB_from_array(NSArray<NSNumber *> *arr) {
 	return (MyRGB){arr[0].doubleValue, arr[1].doubleValue, arr[2].doubleValue};
@@ -154,6 +165,8 @@ static BOOL equal_screen_names(NSObject *a, NSObject *b) {
 		if (memcmp(&Colors[i], &dfl, sizeof(MyRGB)) != 0) save = YES;
 		if (memcmp(&Colors[i], &ColorDefault[i], sizeof(MyRGB)) != 0) reset = YES;
 	}
+	if (!reset) reset = shapeType != ShapePaperPlane;
+	if (!save) save = shapeType != default_shapeType();
 	if (!save) save = !equal_screen_names(FullScreenName, default_screen());
 	resetBtn.enabled = reset;
 	revertBtn.enabled = saveBtn.enabled = save;
@@ -173,9 +186,9 @@ void load_defaults(void) {
 		MyRGB rgb = Colors[ColorBg] = myRGB_from_array(arr);
 		WallRGB = (simd_float3){rgb.red, rgb.green, rgb.blue};
 	}
-	if ((arr = [ud objectForKey:ColorNames[ColorBird]]) != nil) {
-		MyRGB rgb = Colors[ColorBird] = myRGB_from_array(arr);
-		BirdRGB = (simd_float3){rgb.red, rgb.green, rgb.blue};
+	if ((arr = [ud objectForKey:ColorNames[ColorAgnt]]) != nil) {
+		MyRGB rgb = Colors[ColorAgnt] = myRGB_from_array(arr);
+		AgntRGB = (simd_float3){rgb.red, rgb.green, rgb.blue};
 	}
 	FullScreenName = default_screen();
 }
@@ -202,9 +215,11 @@ static void displayReconfigCB(CGDirectDisplayID display,
 - (void)windowDidLoad {
 	popSizeDgt.integerValue = PopSize;
 	sliders = @[avdSld, cohSld, aliSld, sightDSld, sightASld,
-		masSld, mxsSld, mnsSld, frcSld, depthSld, scaleSld, cntrstSld];
+		masSld, mxsSld, mnsSld, frcSld,
+		depthSld, scaleSld, cntrstSld, agntSizeSld, agntOpacitySld];
 	digits = @[avdDgt, cohDgt, aliDgt, sightDDgt, sightADgt,
-		masDgt, mxsDgt, mnsDgt, frcDgt, depthDgt, scaleDgt, cntrstDgt];
+		masDgt, mxsDgt, mnsDgt, frcDgt,
+		depthDgt, scaleDgt, cntrstDgt, agntSizeDgt, agntOpacityDgt];
 	for (NSInteger i = 0; i < sliders.count; i ++) {
 		sliders[i].doubleValue = digits[i].doubleValue = get_param_value(i);
 		sliders[i].tag = digits[i].tag = i;
@@ -219,6 +234,12 @@ static void displayReconfigCB(CGDirectDisplayID display,
 	if (error != kCGErrorSuccess)
 		error_msg(@"Could not register a callback for display reconfiguration,", error);
 	[self checkButtonEnabled];
+	[NSNotificationCenter.defaultCenter
+		addObserverForName:NSWindowDidChangeOcclusionStateNotification
+		object:NSColorPanel.sharedColorPanel queue:nil usingBlock:
+		^(NSNotification * _Nonnull notification) {
+		NSColorPanel.sharedColorPanel.showsAlpha = NO;		
+	}];
 }
 - (NSApplicationTerminateReply)appTerminate {
 	if (!saveBtn.enabled) return NSTerminateNow;
@@ -239,6 +260,12 @@ static void displayReconfigCB(CGDirectDisplayID display,
 	depthSld.doubleValue = scaleSld.doubleValue = 0.;
 	[depthSld sendAction:depthSld.action to:depthSld.target];
 	[scaleSld sendAction:scaleSld.action to:scaleSld.target];
+}
+- (void)camDepthModified {
+	depthSld.doubleValue = depthDgt.doubleValue = ViewPrms.depth;
+}
+- (void)camScaleModified {
+	scaleSld.doubleValue = scaleDgt.doubleValue = ViewPrms.scale;
 }
 static void set_popSize(NSInteger newSize) {
 	[((AppDelegate *)NSApp.delegate).metalView revisePopSize:newSize];
@@ -284,12 +311,27 @@ static void set_popSize(NSInteger newSize) {
 		if (view.paused) view.needsDisplay = YES;
 	}
 }
+- (IBAction)chooseShape:(id)sender {
+	ShapeType newType = (ShapeType)shapePopUp.indexOfSelectedItem;
+	if (shapeType == newType) return;
+	ShapeType orgType = shapeType;
+	shapeType = newType;
+	[undoMngr registerUndoWithTarget:shapePopUp handler:^(NSPopUpButton *popup) {
+		[popup selectItemAtIndex:orgType];
+		[popup sendAction:popup.action to:popup.target];
+	}];
+	MTKView *view = ((AppDelegate *)NSApp.delegate).metalView.view;
+	if (view.paused) view.needsDisplay = YES;
+	[self checkButtonEnabled];
+	if (!(undoMngr.undoing || undoMngr.redoing))
+		undoMngr.actionName = @"Agent Shape";
+}
 static void set_color_value(NSInteger idx, MyRGB rgb) {
 	MTKView *view = ((AppDelegate *)NSApp.delegate).metalView.view;
 	simd_float3 RGB = (simd_float3){rgb.red, rgb.green, rgb.blue};
 	switch (idx) {
 		case ColorBg: WallRGB = RGB; break;
-		case ColorBird: BirdRGB = RGB;
+		case ColorAgnt: AgntRGB = RGB;
 	}
 	if (view.paused) view.needsDisplay = YES;
 }
@@ -391,6 +433,14 @@ static void set_color_value(NSInteger idx, MyRGB rgb) {
 			else [ud setObject:arrNew forKey:ColorNames[i]];
 		} 
 	}
+	if ((numNew = dict[keyShapeType]) != nil) {
+		ShapeType orgType = default_shapeType(), newType = (ShapeType)numNew.intValue;
+		if (newType != orgType) {
+			md[keyShapeType] = @(orgType);
+			if (newType == ShapePaperPlane) [ud removeObjectForKey:keyShapeType];
+			else [ud setObject:numNew forKey:keyShapeType];
+		}
+	}
 	NSObject *orgScr = default_screen(), *newScr = dict[keyFullScreenName];
 	if (newScr != nil && !equal_screen_names(orgScr, newScr)) {
 		md[keyFullScreenName] = orgScr? orgScr : @NO;
@@ -420,6 +470,7 @@ static void set_color_value(NSInteger idx, MyRGB rgb) {
 		if (memcmp(&orgRGB, &Colors[i], sizeof(MyRGB)) != 0)
 			md[ColorNames[i]] = myRGB_to_array(Colors[i]);
 	}
+	if (shapeType != default_shapeType()) md[keyShapeType] = @(shapeType);
 	if (!equal_screen_names(FullScreenName, default_screen()))
 		md[keyFullScreenName] = FullScreenName? FullScreenName : @NO;
 	if (md.count > 0) {
@@ -440,6 +491,8 @@ static void set_color_value(NSInteger idx, MyRGB rgb) {
 		if (memcmp(&newRGB, &Colors[i], sizeof(MyRGB)) != 0)
 			md[ColorNames[i]] = myRGB_to_array(newRGB);
 	}
+	ShapeType newType = default_shapeType();
+	if (shapeType != newType) md[keyShapeType] = @(newType);
 	NSString *newScr = default_screen();
 	if (!equal_screen_names(newScr, FullScreenName))
 		md[keyFullScreenName] = newScr? newScr : @NO;
